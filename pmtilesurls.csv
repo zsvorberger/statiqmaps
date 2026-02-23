@@ -1,0 +1,6 @@
+# PMTiles host root or per-file overrides: <name> <url>
+https://pub-8a2831e00ec443fda66477330bd94460.r2.dev
+paunpavedgravel.pmtiles https://pub-8a2831e00ec443fda66477330bd94460.r2.dev/paunpavedgravel.pmtiles
+speed.pmtiles https://pub-8a2831e00ec443fda66477330bd94460.r2.dev/speed.pmtiles
+traffic.pmtiles https://pub-8a2831e00ec443fda66477330bd94460.r2.dev/traffic.pmtiles
+crash_2024.pmtiles https://pub-8a2831e00ec443fda66477330bd94460.r2.dev/crash_2024.pmtiles

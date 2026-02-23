@@ -1,0 +1,147 @@
+/* Canvas */
+html, body { height:100%; }
+#map { position:fixed; inset:0; z-index:1; }
+
+/* Always-dark text for all UI + popups */
+#status, #surfacePanel, #crashPanel, #usgsPanel, #drawPanel, #panelStack, .maplibregl-popup-content,
+.maplibregl-ctrl-group, .maplibregl-ctrl, label, input, select, textarea, .btn {
+  color:#000 !important;
+}
+
+/* Status chip (top-left) */
+#status{
+  position: fixed; top: 8px; left: 8px; z-index: 1200;
+  background: #052e1a; color:#a7f3d0 !important; padding: 6px 8px;
+  font: 13px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  border-radius: 6px; user-select: none; white-space: pre-line;
+}
+
+/* Inspect toggle (readable by default) */
+#inspectBtn{
+  position: fixed; top: 8px; left: 138px; z-index: 1200;
+  padding: 8px 12px; border-radius: 10px;
+  border:1px solid #d1d5db; background:#fff; cursor:pointer;
+  box-shadow: 0 1px 6px rgba(0,0,0,.15); color:#000;
+}
+#inspectBtn.active{ background:#111; color:#fff; border-color:#111; }
+
+/* Blank toggle (top-right) */
+#blankToggle{
+  position: fixed; top: 8px; right: 8px; z-index: 1400;
+  padding: 6px 10px; border-radius: 10px;
+  border:1px solid #d1d5db; background:#fff; cursor:pointer;
+  box-shadow: 0 1px 6px rgba(0,0,0,.15); color:#000;
+  font: 12px/1.2 system-ui;
+}
+
+/* Hide UI for blank mode */
+body.ui-blank #status,
+body.ui-blank #inspectBtn,
+body.ui-blank #surfacePanel,
+body.ui-blank #crashPanel,
+body.ui-blank #usgsPanel,
+body.ui-blank #drawPanel,
+body.ui-blank #drawFab,
+body.ui-blank #toast {
+  display: none !important;
+}
+
+/* Surface toggles panel */
+#panelStack{
+  position: fixed; top: 50px; left: 8px; z-index: 1200;
+  display: flex; flex-direction: column; gap: 10px;
+  max-height: calc(100vh - 70px); overflow: auto; padding-right: 4px;
+}
+#surfacePanel{
+  background: rgba(255,255,255,.97);
+  border:1px solid #e5e7eb; border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0,0,0,.08);
+  padding: 10px 12px; width: 230px;
+  font: 13px/1.35 system-ui;
+}
+#surfacePanel h4{ margin:0; font-weight:700; font-size:13px; }
+#surfacePanel .row{ display:flex; align-items:center; justify-content:space-between; margin:6px 0; }
+#surfacePanel .swatch{ width:16px; height:4px; border-radius:2px; display:inline-block; margin-right:8px; }
+.c-paved{ background:#6b7280; } .c-gravel{ background:#2563eb; }
+.c-trail{ background:#16a34a; } .c-track{ background:#f59e0b; }
+#surfacePanel .layer-actions{ display:flex; align-items:center; gap:10px; }
+#surfacePanel .layer-actions label{ display:flex; align-items:center; gap:4px; font-size:12px; }
+#surfaceMsg{ font-size:12px; margin-top:6px; }
+
+/* Crash panel */
+#crashPanel{
+  background: rgba(255,255,255,.97);
+  border:1px solid #e5e7eb; border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0,0,0,.08);
+  padding: 10px 12px; width: 230px;
+  font: 13px/1.35 system-ui;
+}
+#crashPanel h4{ margin:0; font-weight:700; font-size:13px; }
+#crashPanel .row{ display:flex; align-items:center; justify-content:space-between; margin:6px 0; }
+#crashPanel .swatch{ width:16px; height:4px; border-radius:2px; display:inline-block; margin-right:8px; }
+#crashMsg{ font-size:12px; margin-top:6px; color:#374151; }
+.crash-filters{ border-top:1px solid #e5e7eb; margin-top:8px; padding-top:8px; }
+.crash-filters .filter-header{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.crash-filters .filter-body .row{ gap:8px; }
+.crash-filters select{ width:120px; }
+
+/* USGS panel */
+#usgsPanel{
+  background: rgba(255,255,255,.97);
+  border:1px solid #e5e7eb; border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0,0,0,.08);
+  padding: 10px 12px; width: 230px;
+  font: 13px/1.35 system-ui;
+}
+#usgsPanel h4{ margin:0; font-weight:700; font-size:13px; }
+#usgsPanel .row{ display:flex; align-items:center; justify-content:space-between; margin:6px 0; }
+#usgsPanel .section-title{ margin-top:8px; font-weight:700; font-size:12px; color:#111; }
+#usgsMsg{ font-size:12px; margin-top:6px; color:#374151; }
+
+/* Draw panel (bottom-right) */
+.panel{
+  position: fixed; z-index: 1200; background: rgba(255,255,255,.97);
+  padding:12px; border-radius:12px; border:1px solid #e5e7eb;
+  font:13px/1.4 system-ui; box-shadow: 0 6px 22px rgba(0,0,0,.10);
+}
+#drawPanel{ bottom:12px; right:8px; width:340px; }
+.panel .title{ font-weight:700; margin-bottom:6px; }
+#drawPanel .title{ margin-bottom:0; }
+.collapsible .panel-header{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.collapsible .panel-toggle{
+  border:1px solid #d1d5db; background:#f3f4f6; border-radius:8px;
+  padding:4px 10px; font-size:12px; cursor:pointer; color:#111; line-height:1.2;
+}
+#drawPanel .panel-toggle{ font-size:13px; }
+.collapsible .panel-toggle:hover{ background:#e5e7eb; }
+.collapsible .panel-body{ margin-top:8px; }
+.collapsible.collapsed .panel-body{ display:none; margin-top:0; }
+.muted{ color:#374151; font-size:12px; }
+.field{ margin:8px 0; }
+label{ display:block; font-weight:600; margin-bottom:4px; }
+input, textarea, select{ width:100%; padding:6px; border:1px solid #d1d5db; border-radius:8px; }
+.row.gap{ display:flex; gap:8px; }
+.btn{ display:inline-block; padding:8px 10px; border-radius:10px; border:1px solid #d1d5db; background:#fff; cursor:pointer; }
+.btn.primary{ border-color:#2563eb; background:#2563eb; color:#fff !important; }
+.btn:disabled{ opacity:.55; cursor:not-allowed; }
+
+/* Draw FAB */
+#drawFab{
+  position: fixed; bottom: 16px; left: 16px; z-index: 1300;
+  width: 50px; height: 50px; border-radius: 999px;
+  border:1px solid #d1d5db; background:#fff; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-size:22px;
+  box-shadow: 0 3px 14px rgba(0,0,0,.20); user-select:none;
+}
+#drawFab.active{ background:#2563eb; color:#fff; border-color:#2563eb; }
+
+/* Toast */
+#toast{
+  position: fixed; right:14px; bottom:14px; z-index:1300;
+  background:#111827; color:#fff; padding:10px 12px; border-radius:10px;
+  display:none; max-width:60ch;
+}
+
+/* Popup readability (force dark text on white) */
+.maplibregl-popup-content{ background:#fff; color:#000 !important; }
+.maplibregl-popup-tip{ border-top-color:#fff; }
