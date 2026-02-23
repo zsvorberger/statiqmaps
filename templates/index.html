@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% include "_analytics.html" %}
+    <title>Strava Stat Tracker</title>
+    <!-- keep using your CSS file -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/user_prefs.js') }}" defer></script>
+    <style>
+        .stats-build-card {
+            width: 220px;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            background: #fff;
+            padding: 16px;
+            box-shadow: 0 15px 30px rgba(15, 23, 42, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.85rem;
+            color: #475569;
+            margin-bottom: 16px;
+            align-self: flex-end;
+        }
+        .stats-build-card__title {
+            font-weight: 600;
+            color: #0f172a;
+        }
+        .stats-build-card__status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #2563eb;
+        }
+        .stats-build-card__note {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+        .stats-build-card button {
+            width: 100%;
+            border: none;
+            border-radius: 999px;
+            padding: 6px 0;
+            background: #2563eb;
+            color: white;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+        .stats-build-card button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .how-works-link {
+            position: absolute;
+            top: 0;
+            right: 0;
+            padding: 6px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            color: #fff;
+            text-decoration: none;
+            font-size: 0.8rem;
+            line-height: 1;
+        }
+        .how-works-link:hover {
+            border-color: #fff;
+        }
+        .help-improve-link {
+            position: absolute;
+            top: 0;
+            left: 0;
+            padding: 6px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            color: #fff;
+            text-decoration: none;
+            font-size: 0.8rem;
+            line-height: 1;
+            background: rgba(15, 23, 42, 0.3);
+        }
+        .help-improve-link:hover {
+            border-color: #fff;
+        }
+        .feature-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: #1f2937;
+        }
+        .feature-link.is-disabled {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+        .connect-cta {
+            margin-top: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 16px;
+            border-radius: 999px;
+            background: #111827;
+            color: #fff;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        @media (max-width: 720px) {
+            .stats-build-card {
+                width: 100%;
+                align-self: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container" style="max-width:960px;margin:0 auto;padding:40px 20px;font-family:'Inter',sans-serif;color:#1f2937;">
+    <header style="text-align:center;margin-bottom:40px;color:#fff;position:relative;">
+        <a class="help-improve-link" href="/help-improve">Help improve this</a>
+        <a class="how-works-link" href="/how-this-works">Support</a>
+        <h1 style="font-size:3.4rem;margin:0;color:#fff;">StatIQ Maps</h1>
+        <h2 style="font-size:1.7rem;margin:10px 0 0;color:#fff;font-weight:500;">Human Movement &amp; Geospatial Intelligence</h2>
+        <p style="color:#fff;margin-top:12px;font-size:0.95rem;">Integrating personal activity data with environmental, infrastructure, and spatial datasets to analyze real-world movement.</p>
+    </header>
+    {% set strava_connected = current_user.strava_athlete_id %}
+    <section class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;">
+        <article style="border:1px solid #e5e7eb;border-radius:18px;padding:20px;background:#fff;box-shadow:0 20px 40px rgba(15,23,42,0.08);">
+            <h2 style="margin:0 0 12px;font-size:1.2rem;">Strava-Connected Analytics</h2>
+            <p style="font-size:0.9rem;color:#6b7280;">Sync Strava first to unlock lifetime stats, comparisons, and personal records.</p>
+            <p style="font-size:0.85rem;color:#6b7280;">To connect or refresh your Strava data, go to your Profile page. Syncing happens from Profile → Connections.</p>
+            <div class="links" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
+                <a class="feature-link{% if not strava_connected %} is-disabled{% endif %}" href="/all_time_stats" {% if not strava_connected %}aria-disabled="true" tabindex="-1"{% endif %}>All Time Stats</a>
+                <a class="feature-link{% if not strava_connected %} is-disabled{% endif %}" href="/lifetime" {% if not strava_connected %}aria-disabled="true" tabindex="-1"{% endif %}>Compare Stats</a>
+                <a class="feature-link{% if not strava_connected %} is-disabled{% endif %}" href="/activities" {% if not strava_connected %}aria-disabled="true" tabindex="-1"{% endif %}>Activity List</a>
+                <a class="feature-link{% if not strava_connected %} is-disabled{% endif %}" href="/personal_best" {% if not strava_connected %}aria-disabled="true" tabindex="-1"{% endif %}>Personal Best</a>
+                <a class="feature-link{% if not strava_connected %} is-disabled{% endif %}" href="/yearly_review" {% if not strava_connected %}aria-disabled="true" tabindex="-1"{% endif %}>Yearly Review</a>
+                <a class="feature-link{% if not strava_connected %} is-disabled{% endif %}" href="/graphs" {% if not strava_connected %}aria-disabled="true" tabindex="-1"{% endif %}>Graphs</a>
+                <a class="feature-link{% if not strava_connected %} is-disabled{% endif %}" href="/unique_miles" {% if not strava_connected %}aria-disabled="true" tabindex="-1"{% endif %}>Unique Miles</a>
+                <a class="feature-link{% if not strava_connected %} is-disabled{% endif %}" href="/heatmaps" {% if not strava_connected %}aria-disabled="true" tabindex="-1"{% endif %}>Ride Heatmaps</a>
+                <a class="feature-link{% if not strava_connected %} is-disabled{% endif %}" href="/gear_tracker_page" {% if not strava_connected %}aria-disabled="true" tabindex="-1"{% endif %}>Gear Tracker</a>
+                <a class="feature-link{% if not strava_connected %} is-disabled{% endif %}" href="/maintenance" {% if not strava_connected %}aria-disabled="true" tabindex="-1"{% endif %}>Maintenance Tracker</a>
+            </div>
+            {% if not strava_connected %}
+            <a class="connect-cta" href="/connect-strava">Connect Strava to Enable</a>
+            {% endif %}
+            <div class="stats-build-card" style="margin-top:16px;">
+                <div class="stats-build-card__title">Stats cache</div>
+                <div class="stats-build-card__status">
+                    {% if stats_ready %}Ready{% else %}Missing{% endif %}
+                </div>
+                <div class="stats-build-card__note">
+                    {% if stats_ready %}
+                        Dashboards ready—load `All Time Stats` without delay.
+                    {% else %}
+                        Queue a build so the cached payload is ready for the heavy dashboard.
+                    {% endif %}
+                </div>
+                <button id="statsRefreshBtn" type="button" {% if stats_ready %}disabled{% endif %}>
+                    {% if stats_ready %}Stats ready{% else %}Queue stats build{% endif %}
+                </button>
+                <div id="statsRefreshStatus" class="stats-build-card__note">
+                    {% if stats_ready %}Cache present{% else %}Waiting to build…{% endif %}
+                </div>
+            </div>
+            <div style="margin-top:12px;font-size:0.75rem;color:#9ca3af;">
+                Data provided by Strava. Strava® is a registered trademark of Strava, Inc.
+            </div>
+        </article>
+        <article style="border:1px solid #e5e7eb;border-radius:18px;padding:20px;background:#fff;box-shadow:0 20px 40px rgba(15,23,42,0.08);">
+            <h2 style="margin:0 0 12px;font-size:1.2rem;">Maps &amp; Spatial Tools</h2>
+            <p style="font-size:0.9rem;color:#6b7280;">Explore coverage, build routes, and pull weather context fast.</p>
+            <div class="links" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
+                <a class="feature-link" href="/map">Map</a>
+                <a class="feature-link" href="/route_builder">Route Builder</a>
+                <a class="feature-link" href="/routes/all">Routes</a>
+                <a class="feature-link" href="/weather">Open Weather Explorer</a>
+            </div>
+        </article>
+        <article style="border:1px solid #e5e7eb;border-radius:18px;padding:20px;background:#fff;box-shadow:0 20px 40px rgba(15,23,42,0.08);">
+            <h2 style="margin:0 0 12px;font-size:1.2rem;">Account &amp; Project Info</h2>
+            <p style="font-size:0.9rem;color:#6b7280;">Manage your profile, settings, and project touchpoints.</p>
+            <div class="links" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
+                <a class="feature-link" href="/profile">Profile</a>
+                <a class="feature-link" href="/settings">Settings</a>
+                <a class="feature-link" href="/about_project">About This Project</a>
+                <a class="feature-link" href="/questions">Questions &amp; Info</a>
+                <a class="feature-link" href="/info">Bike Info Hub</a>
+                <a class="feature-link" href="/reminders">Reminders (Experimental)</a>
+                <a class="feature-link" href="/contact">Contact</a>
+            </div>
+        </article>
+    </section>
+</div>
+{% if not stats_ready %}
+<script>
+(function(){
+    const btn = document.getElementById('statsRefreshBtn');
+    const statusEl = document.getElementById('statsRefreshStatus');
+    if(!btn || !statusEl) return;
+
+    async function updateStatus(){
+        try{
+            const res = await fetch('/api/refresh_stats/status', {credentials: 'same-origin'});
+            if(!res.ok) throw new Error();
+            const job = await res.json();
+            const state = job.status || 'missing';
+            statusEl.textContent = job.message || state;
+            if(state === 'running'){
+                btn.disabled = true;
+                btn.textContent = 'Building stats…';
+            }else if(state === 'queued'){
+                btn.disabled = true;
+                btn.textContent = 'Queued…';
+            }else if(state === 'completed'){
+                btn.disabled = true;
+                btn.textContent = 'Stats ready';
+            }else if(state === 'error'){
+                btn.disabled = false;
+                btn.textContent = 'Retry build';
+            }else{
+                btn.disabled = false;
+                btn.textContent = 'Queue stats build';
+            }
+        }catch(err){
+            statusEl.textContent = 'Unable to check status.';
+            btn.disabled = false;
+        }
+    }
+
+    btn.addEventListener('click', async ()=>{
+        btn.disabled = true;
+        btn.textContent = 'Queueing…';
+        try{
+            const res = await fetch('/api/refresh_stats',{method:'POST', credentials:'same-origin'});
+            if(!res.ok) throw new Error();
+            const payload = await res.json();
+                statusEl.textContent = payload.message || payload.error || 'Stats build triggered.';
+        }catch(err){
+                statusEl.textContent = 'Unable to queue the build.';
+                btn.disabled = false;
+                btn.textContent = 'Queue stats build';
+        }
+        updateStatus();
+    });
+
+    const intervalId = setInterval(updateStatus, 5000);
+    window.addEventListener('beforeunload', ()=>clearInterval(intervalId));
+    updateStatus();
+})();
+</script>
+{% endif %}
+</body>
+</html>

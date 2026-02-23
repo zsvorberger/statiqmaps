@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% include "_analytics.html" %}
+    <title>Contact</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body{
+            font-family:'Inter',sans-serif;
+            background:#f9fafb;
+            color:#0f172a;
+            margin:0;
+        }
+        .shell{
+            max-width:900px;
+            margin:0 auto;
+            padding:40px 20px 80px;
+        }
+        a.back-link{
+            text-decoration:none;
+            color:#2563eb;
+            font-weight:600;
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+        }
+        .card{
+            background:#fff;
+            border-radius:22px;
+            border:1px solid #e5e7eb;
+            padding:28px;
+            box-shadow:0 20px 40px rgba(15,23,42,0.08);
+        }
+        .field{
+            display:flex;
+            flex-direction:column;
+            gap:6px;
+        }
+        .field label{
+            font-size:0.9rem;
+            color:#4b5563;
+            font-weight:600;
+        }
+        .field input,
+        .field textarea{
+            border:1px solid #d1d5db;
+            border-radius:14px;
+            padding:12px;
+            font-size:1rem;
+            font-family:inherit;
+            resize:vertical;
+        }
+        .field textarea{
+            min-height:140px;
+        }
+        button.primary{
+            border:none;
+            border-radius:999px;
+            padding:12px 28px;
+            background:#111827;
+            color:#fff;
+            font-weight:600;
+            cursor:pointer;
+            transition:opacity 0.15s ease;
+        }
+        button.primary:hover{
+            opacity:0.9;
+        }
+        .flash{
+            margin-bottom:16px;
+            border-radius:14px;
+            padding:12px 18px;
+            background:#dbeafe;
+            color:#1d4ed8;
+            font-weight:600;
+        }
+        .info{
+            margin-top:18px;
+            color:#6b7280;
+            font-size:0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <a class="how-works-link" href="/how-this-works">Support</a>
+    <div class="shell">
+    <a class="back-link" href="{{ url_for('index') }}">&#8592; Back to dashboard</a>
+    <div class="card" style="margin-top:24px;">
+        <h1 style="margin:0 0 10px;font-size:2.2rem;">Contact Zach</h1>
+        <p style="margin:0 0 18px;color:#475569;">Have an idea, bug report, or question about the project? Send a quick note and it’ll arrive in my inbox (<strong>{{ contact_email }}</strong>).</p>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="flash">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('contact_page') }}">
+            <div class="field">
+                <label for="name">Your name</label>
+                <input id="name" name="name" type="text" placeholder="Jane Rider">
+            </div>
+
+            <div class="field" style="margin-top:16px;">
+                <label for="email">Email (optional)</label>
+                <input id="email" name="email" type="email" placeholder="you@example.com">
+            </div>
+
+            <div class="field" style="margin-top:16px;">
+                <label for="topic">Topic</label>
+                <input id="topic" name="topic" type="text" placeholder="Feature request, bug report, etc." required>
+            </div>
+
+            <div class="field" style="margin-top:16px;">
+                <label for="message">Message</label>
+                <textarea id="message" name="message" placeholder="Share the details..." required></textarea>
+            </div>
+
+            <div style="margin-top:22px;text-align:right;">
+                <button type="submit" class="primary">Send Message</button>
+            </div>
+        </form>
+
+        <p class="info">Emails are delivered via your configured SMTP settings when available; otherwise they are queued locally for review.</p>
+    </div>
+</div>
+</body>
+</html>

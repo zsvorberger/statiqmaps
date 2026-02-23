@@ -1,0 +1,31 @@
+<!-- bike_nav.html -->
+<style>
+    .bike-nav {
+        display: flex;
+        gap: 15px;
+        background: #f5f5f5;
+        padding: 10px 15px;
+        border-bottom: 1px solid #ddd;
+        font-size: 16px;
+    }
+    .bike-nav a {
+        text-decoration: none;
+        color: #0077cc;
+        font-weight: 500;
+    }
+    .bike-nav a:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="bike-nav">
+    <a href="/bike_stats?bike_id={{ bike_id }}&start_date={{ start_date }}&end_date={{ end_date }}">Stats</a>
+
+    <a href="/heatmap?bike_id={{ bike_id }}&start_date={{ start_date }}&end_date={{ end_date }}">Heatmap</a>
+
+    <a href="/maintenance?bike_id={{ bike_id }}">Maintenance</a>
+
+    <a href="/maintenance/add?bike_id={{ bike_id }}">Add Maintenance</a>
+
+    <a href="/bike_split?bike_id={{ bike_id }}&left=stats&right=heatmap">Split View</a>
+</div>

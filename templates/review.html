@@ -1,0 +1,351 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+    {% include "_analytics.html" %}
+  <title>Submission Review</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <!-- MapLibre (stable) -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css">
+  <style>
+    :root { --border:#e5e7eb; --muted:#6b7280; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    header { padding: 10px 14px; border-bottom: 1px solid var(--border); display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap; }
+    #map { height: 68vh; }
+    #panel { padding: 12px 14px; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+    .pill-row { width:100%; }
+    .pill-row .pill { margin-bottom:4px; }
+    .pill { border:1px solid var(--border); padding:6px 10px; border-radius:999px; cursor:pointer; user-select:none; }
+    .pill.active { background:#111; color:#fff; border-color:#111; }
+    .card { border:1px solid var(--border); border-radius:10px; padding:10px; margin:10px 0; }
+    .btn { padding:6px 10px; border:1px solid var(--border); border-radius:8px; cursor:pointer; background:#fff; }
+    .btn.approve { border-color:#22c55e }
+    .btn.reject { border-color:#ef4444 }
+    .btn.publish { border-color:#3b82f6 }
+    .muted { color:var(--muted); font-size:12px; }
+    .selected { outline: 2px solid #3b82f6; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Review Submissions</strong>
+    <div class="row pill-row" id="filters">
+      <span class="pill active" data-status="">All</span>
+      <span class="pill" data-status="pending">Pending</span>
+      <span class="pill" data-status="approved">Approved</span>
+      <span class="pill" data-status="rejected">Rejected</span>
+      <span class="pill" data-status="published">Published</span>
+    </div>
+    <div style="margin-left:auto" class="muted">Click a line on the map or act from the list</div>
+    <div class="row pill-row" id="typeFilters">
+      <span class="pill active" data-kind="">All types</span>
+      <span class="pill" data-kind="new_trail">Trails</span>
+      <span class="pill" data-kind="surface_update">Surface</span>
+      <span class="pill" data-kind="hazard">Hazards / closures</span>
+      <span class="pill" data-kind="speed_update">Speed limits</span>
+      <span class="pill" data-kind="traffic_update">Traffic counts</span>
+      <span class="pill" data-kind="other">Other</span>
+    </div>
+  </header>
+
+  <div id="map"></div>
+
+  <div id="panel">
+    <div id="list"></div>
+  </div>
+
+  <!-- Map + helpers -->
+  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+  <script>
+    // --- Map init (OSM raster so we don’t depend on your tiles) ---
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: {
+        version: 8,
+        sources: {
+          osm: { type:'raster', tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize:256, maxzoom:19 }
+        },
+        layers: [{ id:'osm', type:'raster', source:'osm' }]
+      },
+      center: [-80.0, 40.5],
+      zoom: 6
+    });
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+    const TYPE_LABELS = {
+      new_trail: 'New trail / connection',
+      surface_update: 'Surface update',
+      hazard: 'Hazard / closure',
+      speed_update: 'Speed limit update',
+      traffic_update: 'Traffic volume update',
+      other: 'Other'
+    };
+
+    let currentStatusFilter = "";
+    let currentKindFilter = "";
+    let featuresFC = { type:'FeatureCollection', features: [] };
+
+    map.on('load', () => {
+      // Source/layer for submissions
+      map.addSource('subs', { type:'geojson', data: featuresFC });
+      map.addLayer({
+        id:'subs-line',
+        type:'line',
+        source:'subs',
+        filter:['in',['geometry-type'],'LineString','MultiLineString'],
+        paint:{
+          // color by status (fallback blue)
+          'line-color': [
+            'match', ['get','status'],
+            'approved', '#16a34a',
+            'rejected', '#ef4444',
+            'published','#7c3aed',
+            /* else */ '#2563eb'
+          ],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 2.5, 10, 4, 14, 6],
+          'line-opacity': 0.9
+        }
+      });
+      map.addLayer({
+        id:'subs-point',
+        type:'circle',
+        source:'subs',
+        filter:['in',['geometry-type'],'Point','MultiPoint'],
+        paint:{
+          'circle-radius': ['interpolate',['linear'],['zoom'],5,6,12,8,16,10],
+          'circle-color': '#2563eb',
+          'circle-opacity': 0.9,
+          'circle-stroke-color': '#fff',
+          'circle-stroke-width': 1.5
+        }
+      });
+
+      // Click a line → focus the list
+      map.on('click','subs-line',(e)=>{
+        if (!e.features?.length) return;
+        const p = e.features[0].properties || {};
+        const id = p.id || (typeof p === 'string' ? JSON.parse(p).id : '');
+        if (!id) return;
+        selectCard(id, true);
+      });
+      map.on('click','subs-point',(e)=>{
+        if (!e.features?.length) return;
+        const p = e.features[0].properties || {};
+        const id = p.id || (typeof p === 'string' ? JSON.parse(p).id : '');
+        if (!id) return;
+        selectCard(id, true);
+      });
+
+      fetchItems();
+    });
+
+    // --- Fetch & render ---
+    async function fetchItems() {
+      const qs = currentStatusFilter ? `?status=${encodeURIComponent(currentStatusFilter)}` : '';
+      const res = await fetch(`/api/submissions${qs}`);
+      const items = await res.json();
+      const filteredItems = currentKindFilter
+        ? items.filter(it => (it.type || '') === currentKindFilter)
+        : items;
+
+      // Normalize to GeoJSON features (only those with geometry)
+      const feats = [];
+      for (const it of filteredItems) {
+        const id = it.id || it._id || '';
+        const status = it.status || 'pending';
+        const type = it.type || '';
+        const note = it.note || '';
+        const surface = it.proposed_surface || '';
+        const geom = normalizeGeom(it);
+        if (!geom) continue; // skip items without geometry
+
+        feats.push({
+          type:'Feature',
+          geometry: geom,
+          properties: { id, status, type, note, proposed_surface: surface, geom_type: geom.type }
+        });
+      }
+      featuresFC = { type:'FeatureCollection', features: feats };
+
+      // Update map
+      const src = map.getSource('subs');
+      if (src) src.setData(featuresFC);
+
+      // Fit to results
+      if (feats.length) {
+        const bb = collectionBBox(featuresFC);
+        if (isDegenerateBBox(bb)) {
+          map.easeTo({ center: bb[0], zoom: 15, duration: 600 });
+        } else {
+          map.fitBounds(bb, { padding: 60, duration: 600, maxZoom: 16 });
+        }
+      }
+
+      // Update list
+      renderList(feats);
+    }
+
+    function normalizeGeom(it){
+      // Accept { geometry }, or nested under geojson.geometry
+      const g = it?.geometry || it?.geojson?.geometry || null;
+      if (!g) return null;
+      if ((g.type === 'LineString' || g.type === 'MultiLineString') && g.coordinates?.length) return g;
+      if (g.type === 'Point' && Array.isArray(g.coordinates)) return g;
+      if (g.type === 'MultiPoint' && g.coordinates?.length) return g;
+      return null;
+    }
+
+    // --- List rendering ---
+    function renderList(feats){
+      const list = document.getElementById('list');
+      if (!feats.length) {
+        list.innerHTML = '<p class="muted">No submissions with geometry for this filter.</p>';
+        return;
+      }
+      list.innerHTML = feats.map(f=>{
+        const p = f.properties;
+        const label = formatTypeLabel(p.type);
+        const surface = p.proposed_surface ? escapeHtml(p.proposed_surface) : '—';
+        const note = p.note ? `<div style="margin-top:6px">${escapeHtml(p.note)}</div>` : '';
+        let location = '';
+        if ((p.geom_type === 'Point' || p.geom_type === 'MultiPoint') && f.geometry.coordinates) {
+          const coords = p.geom_type === 'Point' ? [f.geometry.coordinates] : f.geometry.coordinates;
+          const first = coords[0];
+          if (first) {
+            const [lng, lat] = first;
+            location = `<div class="muted">Lat ${lat.toFixed(5)}, Lng ${lng.toFixed(5)}</div>`;
+          }
+        }
+        return `
+          <div class="card" id="card-${p.id}">
+            <div><strong>${label}</strong> — <span class="muted">${p.status}</span></div>
+            <div>Geometry: <b>${formatGeomLabel(p.geom_type)}</b> • Surface: <b>${surface}</b></div>
+            ${location}
+            ${note}
+            <div class="row" style="margin-top:8px;">
+              <button class="btn approve" onclick="setStatus('${p.id}','approved')">Approve</button>
+              <button class="btn reject"  onclick="setStatus('${p.id}','rejected')">Reject</button>
+              <button class="btn publish" onclick="setStatus('${p.id}','published')">Publish</button>
+              <button class="btn"        onclick="zoomTo('${p.id}')">Zoom to</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- Actions ---
+    async function setStatus(id, status){
+      const res = await fetch(`/api/submissions/${id}/status`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({status})
+      });
+      if (!res.ok) { alert('Failed'); return; }
+      await fetchItems();
+      // keep the changed card in view if it still matches the filter
+      selectCard(id, false);
+    }
+
+    function zoomTo(id){
+      const f = featuresFC.features.find(x=>x.properties.id === id);
+      if (!f) return;
+      const bb = featureBBox(f);
+      if (isDegenerateBBox(bb)) {
+        map.easeTo({ center: bb[0], zoom: 17, duration: 600 });
+      } else {
+        map.fitBounds(bb, { padding: 60, duration: 600, maxZoom: 18 });
+      }
+      selectCard(id, true);
+    }
+
+    function selectCard(id, scroll){
+      document.querySelectorAll('.card').forEach(el=>el.classList.remove('selected'));
+      const el = document.getElementById(`card-${id}`);
+      if (el){ el.classList.add('selected'); if (scroll) el.scrollIntoView({behavior:'smooth', block:'center'}); }
+    }
+
+    // --- Filters (tabs) ---
+    document.getElementById('filters').addEventListener('click', (e) => {
+      const pill = e.target.closest('.pill');
+      if (!pill) return;
+      document.querySelectorAll('#filters .pill').forEach(el=>el.classList.remove('active'));
+      pill.classList.add('active');
+      currentStatusFilter = pill.dataset.status || '';
+      fetchItems();
+    });
+
+    document.getElementById('typeFilters').addEventListener('click', (e) => {
+      const pill = e.target.closest('.pill');
+      if (!pill) return;
+      document.querySelectorAll('#typeFilters .pill').forEach(el=>el.classList.remove('active'));
+      pill.classList.add('active');
+      currentKindFilter = pill.dataset.kind || '';
+      fetchItems();
+    });
+
+    // --- BBox helpers ---
+    function featureBBox(f){
+      if (f.geometry.type === 'LineString') {
+        const c = f.geometry.coordinates;
+        let minX= Infinity, minY= Infinity, maxX=-Infinity, maxY=-Infinity;
+        for (const [x,y] of c){ if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y; }
+        return [[minX,minY],[maxX,maxY]];
+      }
+      if (f.geometry.type === 'MultiLineString') {
+        const c = f.geometry.coordinates.flat();
+        let minX= Infinity, minY= Infinity, maxX=-Infinity, maxY=-Infinity;
+        for (const [x,y] of c){ if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y; }
+        return [[minX,minY],[maxX,maxY]];
+      }
+      if (f.geometry.type === 'Point') {
+        const [x, y] = f.geometry.coordinates;
+        return [[x,y],[x,y]];
+      }
+      if (f.geometry.type === 'MultiPoint') {
+        const pts = f.geometry.coordinates;
+        let minX= Infinity, minY= Infinity, maxX=-Infinity, maxY=-Infinity;
+        for (const [x,y] of pts){ if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y; }
+        return [[minX,minY],[maxX,maxY]];
+      }
+      // fallback
+      return [[-180,-85],[180,85]];
+    }
+    function collectionBBox(fc){
+      let minX= Infinity, minY= Infinity, maxX=-Infinity, maxY=-Infinity;
+      for (const f of fc.features){
+        const [[x1,y1],[x2,y2]] = featureBBox(f);
+        if (x1<minX)minX=x1; if (y1<minY)minY=y1;
+        if (x2>maxX)maxX=x2; if (y2>maxY)maxY=y2;
+      }
+      return [[minX,minY],[maxX,maxY]];
+    }
+
+    function isDegenerateBBox(bb){
+      return bb && bb[0][0] === bb[1][0] && bb[0][1] === bb[1][1];
+    }
+
+    function formatTypeLabel(val){
+      if (!val) return 'Submission';
+      return TYPE_LABELS[val] || val.replace(/_/g, ' ');
+    }
+
+    function formatGeomLabel(type){
+      if (!type) return 'Unknown';
+      const map = {
+        LineString: 'Line',
+        MultiLineString: 'Multi-line',
+        Point: 'Point',
+        MultiPoint: 'Multi-point'
+      };
+      return map[type] || type;
+    }
+
+    // --- utils ---
+    function escapeHtml(s){ return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+    // Expose a couple funcs for inline onclick
+    window.setStatus = setStatus;
+    window.zoomTo = zoomTo;
+  </script>
+</body>
+</html>

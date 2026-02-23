@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+    {% include "_analytics.html" %}
+  <title>Personal Best Trophy Case</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      font-family: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #05060a;
+      color: #f8fafc;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at 15% 20%, rgba(255,255,255,0.08), transparent 45%),
+                  radial-gradient(circle at 85% 10%, rgba(255,153,0,0.15), transparent 40%),
+                  linear-gradient(135deg, #05060a, #0f1729 60%, #05060a);
+    }
+    .page {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 48px 18px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 26px;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: clamp(2.2rem, 4vw, 3.3rem);
+      letter-spacing: -0.05em;
+    }
+    header p {
+      margin: 8px 0 0;
+      color: #cbd5f5;
+      max-width: 500px;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+    .unit-toggle {
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      border-radius: 999px;
+      display: inline-flex;
+      overflow: hidden;
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(6px);
+    }
+    .unit-toggle button,
+    .unit-toggle a {
+      border: none;
+      padding: 10px 20px;
+      background: transparent;
+      color: #cbd5f5;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+      text-decoration: none;
+    }
+    .unit-toggle button.active,
+    .unit-toggle a.active {
+      background: linear-gradient(120deg, #f97316, #fb923c);
+      color: #020617;
+    }
+    .toggle-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .unit-toggle.virtual-toggle {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    .trophy-section {
+      background: rgba(7, 11, 21, 0.88);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 28px;
+      padding: 26px;
+      box-shadow: 0 35px 60px rgba(4, 7, 15, 0.7);
+      backdrop-filter: blur(12px);
+    }
+    .section-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 20px;
+    }
+    .section-header h2 {
+      font-size: 1.6rem;
+      margin: 0;
+      color: #f8fafc;
+    }
+    .section-header p {
+      margin: 0;
+      color: #94a3b8;
+    }
+    .trophy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .trophy-card {
+      border-radius: 22px;
+      padding: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      background: radial-gradient(circle at top, rgba(255,255,255,0.08), transparent 60%),
+                  rgba(15, 23, 42, 0.95);
+      min-height: 190px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+    .trophy-card::after {
+      content: "";
+      position: absolute;
+      inset: 1px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(59,130,246,0.08), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+    }
+    .trophy-card:hover::after {
+      opacity: 1;
+    }
+    .trophy-card .icon {
+      font-size: 1.7rem;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: rgba(249,115,22,0.2);
+      color: #f97316;
+      margin-bottom: 10px;
+    }
+    .trophy-card h3 {
+      margin: 0;
+      font-size: 1.05rem;
+      color: #f8fafc;
+    }
+    .trophy-card small {
+      color: #94a3b8;
+    }
+    .trophy-card .stat-value {
+      font-size: 1.9rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin: 12px 0 4px;
+    }
+    .trophy-card .detail {
+      color: #cbd5f5;
+      font-size: 0.9rem;
+    }
+    .activity-meta {
+      margin-top: auto;
+      border-top: 1px solid rgba(148, 163, 184, 0.18);
+      padding-top: 12px;
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+    .activity-meta strong {
+      display: block;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+    }
+    .trophy-card.empty {
+      opacity: 0.6;
+      border-style: dashed;
+      text-align: center;
+      justify-content: center;
+    }
+    .trophy-card.empty .icon {
+      display: none;
+    }
+    @media (max-width: 640px) {
+      header { flex-direction: column; align-items: flex-start; }
+      .trophy-card { min-height: 160px; }
+    }
+  </style>
+</head>
+<body>
+  <a href="/how-this-works" style="position:fixed;top:18px;right:18px;padding:6px 12px;border-radius:999px;border:1px solid rgba(148,163,184,0.6);color:#0f172a;text-decoration:none;font-size:0.8rem;background:#fff;">Support</a>
+  <div class="page">
+    <header>
+      <div>
+        <div style="font-size:0.72rem;color:#64748b;font-style:italic;margin-bottom:6px;">
+          Strava activity data used with athlete permission.
+        </div>
+        <h1>Trophy Case</h1>
+        <p>A living showcase of every personal best recorded in your Strava history. Tap a card for context, dates, and bragging rights.</p>
+      </div>
+      <div class="toggle-stack">
+        <div class="unit-toggle" id="unitToggle">
+          <button class="active" data-unit="metric">Metric</button>
+          <button data-unit="imperial">Imperial</button>
+        </div>
+        <div class="unit-toggle virtual-toggle">
+          <a class="{% if include_virtual %}active{% endif %}" href="{{ url_for('personal_best', virtual='include') }}">Virtual rides on</a>
+          <a class="{% if not include_virtual %}active{% endif %}" href="{{ url_for('personal_best', virtual='exclude') }}">Virtual rides off</a>
+        </div>
+      </div>
+    </header>
+
+    {% for section in sections %}
+      <section class="trophy-section">
+        <div class="section-header">
+          <h2>{{ section.title }}</h2>
+          <p>{{ section.subtitle }}</p>
+        </div>
+        <div class="trophy-grid">
+          {% set cards = section.cards or section.items %}
+          {% for item in cards %}
+            <article class="trophy-card{% if item.empty %} empty{% endif %}">
+              <div class="icon">{{ item.icon }}</div>
+              <div>
+                <h3>{{ item.title }}</h3>
+                <small>{{ item.description }}</small>
+              </div>
+          <div class="stat-value" data-metric="{{ item.value_metric }}" data-imperial="{{ item.value_imperial }}">
+            {{ item.value_metric }}
+          </div>
+          {% if item.subtitle %}
+            <small class="muted">{{ item.subtitle }}</small>
+          {% endif %}
+          {% if item.detail %}
+            <div class="detail">{{ item.detail }}</div>
+          {% endif %}
+          <div class="activity-meta">
+            {% if item.activity_name %}
+              <strong>{{ item.activity_name }}</strong>
+              <span>{{ item.activity_type }} &middot; {{ item.date }}</span>
+              {% if item.bike %}
+                <span>{{ item.bike }}</span>
+              {% endif %}
+            {% else %}
+              <strong>Waiting for your next ride</strong>
+              <span>Record a new activity to populate this slot.</span>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+  <script>
+    const toggle = document.getElementById('unitToggle');
+    const buttons = toggle.querySelectorAll('button');
+    const cards = document.querySelectorAll('.stat-value');
+
+    function applyUnits(unit) {
+      cards.forEach(el => {
+        const next = el.dataset[unit];
+        if (next) el.textContent = next;
+      });
+    }
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        buttons.forEach(b => b.classList.toggle('active', b === btn));
+        applyUnits(btn.dataset.unit);
+      });
+    });
+  </script>
+</body>
+</html>

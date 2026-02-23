@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    {% include "_analytics.html" %}
+    <title>Raw Strava Activity Data</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        pre { background-color: #f0f0f0; padding: 15px; overflow-x: scroll; }
+    </style>
+</head>
+<body>
+    <div style="font-size:0.72rem;color:#6b7280;font-style:italic;margin-bottom:6px;">
+        Strava activity data used with athlete permission.
+    </div>
+    <h1>Raw Activity Data ({{ all_data|length }} activities)</h1>
+    <pre>{{ all_data | tojson(indent=2) }}</pre>
+</body>
+</html>

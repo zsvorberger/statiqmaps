@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% include "_analytics.html" %}
+    <title>Foot Stats</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Inline quick styling, you can move to CSS later */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0d0d1a;
+            color: #f0f0f0;
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            color: #ff6666;
+            margin-bottom: 20px;
+        }
+        .stats-container {
+            display: inline-block;
+            background: #1c1c2e;
+            border-radius: 12px;
+            padding: 20px 40px;
+            text-align: left;
+        }
+        .stats-container ul {
+            list-style: none;
+            padding: 0;
+        }
+        .stats-container li {
+            margin: 8px 0;
+            font-size: 16px;
+        }
+        .label {
+            font-weight: bold;
+            color: #66ccff;
+        }
+    </style>
+</head>
+<body>
+    <a class="how-works-link" href="/how-this-works">Support</a>
+    <div style="font-size:0.72rem;color:#9ca3af;font-style:italic;margin-bottom:6px;">
+        Strava activity data used with athlete permission.
+    </div>
+    <h1>🥾 Hiking / Running / Walking Stats</h1>
+
+    <div class="stats-container">
+        <ul>
+            <li><span class="label">Activities:</span> {{ stats.activity_count }}</li>
+            <li><span class="label">Total Distance:</span> {{ stats.total_distance_km }} km ({{ stats.total_distance_mi }} mi)</li>
+            <li><span class="label">Total Elevation Gain:</span> {{ stats.total_elevation_m }} m</li>
+            <li><span class="label">Moving Time:</span> {{ stats.total_moving_h }} h</li>
+            <li><span class="label">Elapsed Time:</span> {{ stats.total_elapsed_time_s // 3600 }} h</li>
+            <li><span class="label">Average Speed:</span> {{ stats.avg_speed_kmh }} km/h</li>
+            <li><span class="label">Average Pace:</span> {{ stats.avg_pace_min_per_km }} min/km</li>
+            <li><span class="label">Longest Distance:</span> {{ stats.longest_distance | round(1) }} m ({{ stats.longest_date }})</li>
+            <li><span class="label">Biggest Climb:</span> {{ stats.biggest_climb }} m ({{ stats.biggest_climb_date }})</li>
+        </ul>
+    </div>
+</body>
+</html>

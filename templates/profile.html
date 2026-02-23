@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+    {% include "_analytics.html" %}
+  <title>Profile</title>
+  <!-- Use system fonts to avoid blocking external requests -->
+  <script src="{{ url_for('static', filename='js/user_prefs.js') }}" defer></script>
+  <style>
+    :root{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#050911;color:#e2e8f0;}
+    body{margin:0;min-height:100vh;background:radial-gradient(circle at top,#111c33,#050911 65%);padding:40px 12px;}
+    .page{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:20px;}
+    .card{border:1px solid rgba(148,163,184,0.18);border-radius:20px;background:rgba(15,23,42,0.8);backdrop-filter:blur(8px);box-shadow:0 25px 60px rgba(2,8,23,0.55);padding:24px;}
+    h1{margin:0;font-size:2.2rem;color:#fff;}
+    .subtitle{color:#94a3b8;font-size:0.95rem;margin:6px 0 0;}
+    .overview{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between;}
+    .avatar{width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,#38bdf8,#a855f7);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:600;color:#fff;}
+    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:18px;}
+    .stat{padding:14px;border-radius:16px;background:rgba(15,23,42,0.9);border:1px solid rgba(148,163,184,0.2);}
+    .stat label{font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#94a3b8;}
+    .stat strong{display:block;margin-top:6px;font-size:1.2rem;color:#fff;}
+    .connections{display:flex;flex-direction:column;gap:12px;}
+    .connection-card{display:flex;align-items:flex-start;justify-content:space-between;border:1px solid rgba(148,163,184,0.2);border-radius:16px;padding:14px 18px;background:rgba(15,23,42,0.8);gap:16px;}
+    .connection-card span{font-size:0.9rem;}
+    .connection-card form{margin:0;}
+    .connection-actions{display:flex;flex-direction:column;gap:6px;align-items:flex-end;}
+    .action-block{display:flex;flex-direction:column;gap:6px;}
+    .helper-text{font-size:0.75rem;color:#94a3b8;max-width:260px;}
+    button, a.button-link{border:none;border-radius:12px;padding:8px 16px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+    .btn-primary{background:#38bdf8;color:#031525;}
+    .btn-secondary{background:rgba(148,163,184,0.2);color:#e2e8f0;}
+    .btn-danger{background:#ef4444;color:#fff;}
+    a.button-link[aria-disabled="true"]{pointer-events:none;opacity:0.6;}
+    button:disabled{opacity:0.6;cursor:not-allowed;}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;}
+    .log-section{display:flex;flex-direction:column;gap:16px;}
+    .log-entry{border-left:3px solid #38bdf8;padding-left:12px;color:#94a3b8;font-size:0.9rem;}
+    .link-row{display:flex;justify-content:space-between;align-items:center;margin-top:20px;font-size:0.85rem;}
+    .link-row a{color:#94a3b8;text-decoration:none;}
+    .link-row a:hover{color:#fff;}
+    .how-works-link{position:fixed;top:18px;right:18px;padding:6px 12px;border-radius:999px;border:1px solid rgba(148,163,184,0.4);color:#e2e8f0;text-decoration:none;font-size:0.8rem;background:rgba(15,23,42,0.8);}
+    .how-works-link:hover{border-color:rgba(226,232,240,0.9);}
+    .sync-actions{display:flex;flex-direction:column;gap:12px;}
+    .sync-progress{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
+    .progress-track{height:10px;border-radius:999px;background:rgba(148,163,184,0.2);overflow:hidden;}
+    .progress-fill{height:100%;width:0%;background:linear-gradient(90deg,#38bdf8,#22c55e);transition:width 0.5s ease;}
+    .sync-status{font-size:0.85rem;color:#cbd5f5;}
+    .sync-hint{font-size:0.75rem;color:#94a3b8;}
+    .sync-success{font-size:0.8rem;color:#a7f3d0;display:none;}
+    .sync-success a{color:#38bdf8;text-decoration:none;}
+  </style>
+</head>
+<body data-strava-connected="{{ 'true' if strava.connected else 'false' }}">
+  <a class="how-works-link" href="/how-this-works">Support</a>
+  <div class="page">
+    <section class="card overview">
+      <div style="display:flex;gap:18px;align-items:center;">
+        <div class="avatar">{{ user.username[:1]|upper }}</div>
+        <div>
+          <div style="font-size:0.72rem;color:#94a3b8;font-style:italic;margin-bottom:6px;">
+            Strava activity data used with athlete permission.
+          </div>
+          <h1>{{ user.username }}</h1>
+          <p class="subtitle">{{ user.email }}</p>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="button-link btn-secondary" href="/">← Back home</a>
+        <a class="button-link btn-secondary" href="/logout">Log out</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin:0 0 12px;font-size:1.3rem;">Account Stats</h2>
+        <div class="stat-grid">
+          <div class="stat">
+            <label>Username</label>
+            <strong>{{ user.username }}</strong>
+          </div>
+          <div class="stat">
+            <label>Email</label>
+            <strong>{{ user.email }}</strong>
+          </div>
+          <div class="stat">
+            <label>Member since</label>
+            <strong>{{ user.created_display or '—' }}</strong>
+          </div>
+          <div class="stat">
+            <label>Last activity</label>
+            <strong>{% if strava.last_activity %}{{ strava.last_activity }}{% else %}—{% endif %}</strong>
+          </div>
+          <div class="stat">
+            <label>Last login</label>
+            <strong>{{ user.last_login_display or '—' }}</strong>
+          </div>
+        </div>
+    </section>
+
+    <section class="card connections">
+      <h2 style="margin:0 0 12px;font-size:1.3rem;">Connections</h2>
+      <div class="connection-card">
+        <div>
+          <strong>Strava</strong>
+          {% if strava.connected %}
+            <span style="display:block;color:#94a3b8;">Connected as {{ strava.athlete_name }} (ID {{ strava.athlete_id }}){% if strava.connected_at %}<br>Linked {{ strava.connected_at }}{% endif %}</span>
+          {% else %}
+            <span style="display:block;color:#94a3b8;">Sync rides, runs, and gear from Strava.</span>
+          {% endif %}
+        </div>
+        <div class="connection-actions">
+          {% if strava.connected %}
+            <form method="POST" action="/disconnect-strava">
+              <button type="submit" class="btn-secondary">Disconnect</button>
+            </form>
+          {% else %}
+            <a class="button-link btn-primary" id="connectStravaBtn" href="/connect-strava">Connect Strava</a>
+            <div class="helper-text">First-time setup. Authorize Strava to enable syncing.</div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="connection-card">
+        <div>
+          <strong>Data controls</strong>
+          <span style="display:block;color:#94a3b8;">
+            Delete local JSON data to force a clean resync.
+          </span>
+        </div>
+        <form method="POST" action="/profile/delete_data" onsubmit="return confirm('Delete your locally stored Strava data? This removes cached JSON files and stats.');">
+          <button type="submit" class="btn-danger" id="deleteStravaDataBtn" {% if not strava.connected %}disabled{% endif %}>
+            Delete data
+          </button>
+        </form>
+      </div>
+      <div class="connection-card">
+        <div>
+          <strong>Data sync</strong>
+          <span style="display:block;color:#94a3b8;" id="profileRefreshStatus">
+            {% if strava.connected and strava.last_sync %}
+              Last synced {{ strava.last_sync }}{% if strava.last_activity %}<br>Last activity {{ strava.last_activity }}{% endif %}
+            {% elif strava.connected %}
+              No sync yet. Run Refresh Data below.
+            {% else %}
+              Connect your Strava to enable sync
+            {% endif %}
+          </span>
+        </div>
+        <div class="sync-actions">
+          <div class="action-block">
+            <button class="btn-primary" id="profileRefreshBtn" type="button" {% if not strava.connected %}disabled{% endif %}>
+              {% if strava.connected %}Refresh data{% else %}Connect Strava first{% endif %}
+            </button>
+            <div class="helper-text">Checks for new activities and rebuilds stats. Usually 1–5 minutes.</div>
+          </div>
+          <div class="action-block">
+            <button class="btn-secondary" id="profileStatsBtn" type="button" {% if not strava.connected %}disabled{% endif %}>
+              Rebuild stats only
+            </button>
+            <div class="helper-text">Use if charts look stale. No Strava download.</div>
+            <div class="sync-progress" id="statsProgress">
+              <div class="sync-status" id="statsStatusText">Idle</div>
+              <div class="progress-track">
+                <div class="progress-fill" id="statsProgressBar"></div>
+              </div>
+              <div class="sync-hint" id="statsHint">Building stats can take a few minutes for large accounts.</div>
+              <div class="sync-success" id="statsSuccess">Stats cache ready. <a href="/all_time_stats">View dashboard</a></div>
+            </div>
+          </div>
+          <div class="sync-progress" id="syncProgress">
+            <div class="sync-status" id="syncStatusText">Idle</div>
+            <div class="progress-track">
+              <div class="progress-fill" id="syncProgressBar"></div>
+            </div>
+            <div class="sync-hint" id="syncHint">Large Strava accounts may take a few minutes. Please don’t close this tab while syncing.</div>
+            <div class="sync-success" id="syncSuccess">Sync complete. <a href="/all_time_stats">View dashboard</a></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card log-section">
+      <h2 style="margin:0 0 12px;font-size:1.3rem;">Recent activity</h2>
+      <div id="profileLog">
+        {% if strava.connected and strava.last_sync %}
+          <div class="log-entry">Last sync completed {{ strava.last_sync }}.</div>
+        {% else %}
+          <div class="log-entry">No sync activity yet.</div>
+        {% endif %}
+      </div>
+    </section>
+
+    <div class="link-row">
+      <a href="/all_time_stats">All-time dashboard</a>
+      <a href="/activities">Activity library</a>
+      <a href="/route_builder">Route builder</a>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    const status = document.getElementById('profileRefreshStatus');
+    const btn = document.getElementById('profileRefreshBtn');
+    const statsBtn = document.getElementById('profileStatsBtn');
+    const log = document.getElementById('profileLog');
+    const connectBtn = document.getElementById('connectStravaBtn');
+    const deleteBtn = document.getElementById('deleteStravaDataBtn');
+    const syncProgress = document.getElementById('syncProgress');
+    const syncStatusText = document.getElementById('syncStatusText');
+    const syncProgressBar = document.getElementById('syncProgressBar');
+    const syncHint = document.getElementById('syncHint');
+    const syncSuccess = document.getElementById('syncSuccess');
+    const statsProgress = document.getElementById('statsProgress');
+    const statsStatusText = document.getElementById('statsStatusText');
+    const statsProgressBar = document.getElementById('statsProgressBar');
+    const statsHint = document.getElementById('statsHint');
+    const statsSuccess = document.getElementById('statsSuccess');
+    let syncRunning = false;
+    let statsRunning = false;
+    if(!btn) return;
+    const canSync = document.body.dataset.stravaConnected === 'true';
+    if(!canSync){
+      if(status) status.textContent = 'Connect your Strava account to enable sync.';
+      return;
+    }
+    function setButtonsDisabled(isDisabled){
+      if(btn) btn.disabled = isDisabled;
+      if(statsBtn) statsBtn.disabled = isDisabled;
+      if(connectBtn) connectBtn.setAttribute('aria-disabled', String(isDisabled));
+      if(deleteBtn) deleteBtn.disabled = isDisabled;
+    }
+    function stageFromProgress(progressValue){
+      if(progressValue < 20) return 'Connecting to Strava…';
+      if(progressValue < 50) return 'Downloading activities…';
+      if(progressValue < 85) return 'Building your stats…';
+      return 'Finalizing your dashboard…';
+    }
+    function applySyncStatus(payload){
+      if(!payload) return;
+      const statusValue = payload.state || payload.status || 'idle';
+      const progressValue = Math.max(0, Math.min(100, Number(payload.progress || 0)));
+      const isRunning = statusValue === 'running' || statusValue === 'queued';
+      syncRunning = isRunning;
+      if(syncProgressBar){
+        syncProgressBar.style.width = `${isRunning ? Math.max(progressValue, 5) : (statusValue === 'done' || statusValue === 'completed' ? 100 : 0)}%`;
+      }
+      if(syncStatusText){
+        syncStatusText.textContent = payload.message || (isRunning ? stageFromProgress(progressValue) : 'Idle');
+      }
+      if(syncHint){
+        syncHint.style.display = isRunning ? 'block' : 'none';
+      }
+      if(syncSuccess){
+        syncSuccess.style.display = (statusValue === 'done' || statusValue === 'completed') ? 'block' : 'none';
+      }
+      setButtonsDisabled(syncRunning || statsRunning);
+      if(btn){
+        if(isRunning){
+          btn.textContent = 'Syncing…';
+        }else if(statusValue === 'error'){
+          btn.textContent = 'Retry sync';
+        }else{
+          btn.textContent = 'Refresh data';
+        }
+      }
+      if(status && payload.last_sync){
+        const activityLine = payload.last_activity ? `<br>Last activity ${payload.last_activity}` : '';
+        status.innerHTML = `Last synced ${payload.last_sync}${activityLine}`;
+      }
+      if(statusValue === 'error' && log){
+        log.innerHTML = `<div class="log-entry" style="border-color:#f87171;color:#fca5a5;">${payload.message || 'Last sync failed.'}</div>`;
+      }else if(statusValue === 'done' || statusValue === 'completed'){
+        const when = payload.ended_at ? new Date(payload.ended_at * 1000).toLocaleString() : null;
+        if(log) log.innerHTML = `<div class="log-entry">Last sync completed ${when || 'just now'}.</div>`;
+      }
+    }
+    function applyStatsStatus(payload){
+      if(!payload) return;
+      const statusValue = payload.status || 'idle';
+      const progressValue = Number(payload.progress || 0);
+      const isRunning = statusValue === 'running' || statusValue === 'queued';
+      statsRunning = isRunning;
+      if(statsProgressBar){
+        const shown = progressValue || (statusValue === 'queued' ? 10 : statusValue === 'running' ? 55 : statusValue === 'completed' ? 100 : 0);
+        statsProgressBar.style.width = `${shown}%`;
+      }
+      if(statsStatusText){
+        statsStatusText.textContent = payload.message || (isRunning ? 'Building stats…' : 'Idle');
+      }
+      if(statsHint){
+        statsHint.style.display = isRunning ? 'block' : 'none';
+      }
+      if(statsSuccess){
+        statsSuccess.style.display = statusValue === 'completed' ? 'block' : 'none';
+      }
+      setButtonsDisabled(syncRunning || statsRunning);
+      if(statsBtn){
+        if(isRunning){
+          statsBtn.textContent = statusValue === 'queued' ? 'Queued…' : 'Building stats…';
+        }else if(statusValue === 'error'){
+          statsBtn.textContent = 'Retry stats build';
+        }else{
+          statsBtn.textContent = 'Rebuild stats only';
+        }
+      }
+    }
+    // Poll lightweight sync status so the UI stays responsive during long Strava syncs.
+    async function loadStatus(){
+      try{
+        const res = await fetch('/sync-status', { credentials: 'same-origin' });
+        if(!res.ok) throw new Error();
+        const contentType = res.headers.get('content-type') || '';
+        if(!contentType.includes('application/json')) throw new Error();
+        const data = await res.json();
+        applySyncStatus(data || {status: 'idle'});
+      }catch(e){
+        if(status) status.textContent = 'Status unavailable';
+      }
+    }
+    async function loadStatsStatus(){
+      try{
+        const res = await fetch('/api/refresh_stats/status', { credentials: 'same-origin' });
+        if(!res.ok) throw new Error();
+        const contentType = res.headers.get('content-type') || '';
+        if(!contentType.includes('application/json')) throw new Error();
+        const data = await res.json();
+        applyStatsStatus(data || {status: 'idle'});
+      }catch(e){
+        if(statsStatusText) statsStatusText.textContent = 'Status unavailable';
+      }
+    }
+    btn.addEventListener('click', async ()=>{
+      applySyncStatus({state: 'running', progress: 5, message: 'Connecting to Strava…'});
+      try{
+        const res = await fetch('/api/refresh_strava',{method:'POST', credentials: 'same-origin'});
+        if(!res.ok) throw new Error();
+        const contentType = res.headers.get('content-type') || '';
+        if(!contentType.includes('application/json')) throw new Error();
+        const payload = await res.json();
+        applySyncStatus(payload.status || payload);
+        loadStatus();
+      }catch(err){
+        status.textContent = 'Unable to start sync.';
+        setButtonsDisabled(false);
+        btn.textContent = 'Refresh data';
+      }
+    });
+    if(connectBtn){
+      connectBtn.addEventListener('click', (event) => {
+        if (connectBtn.getAttribute('aria-disabled') === 'true') {
+          event.preventDefault();
+          return;
+        }
+        applySyncStatus({state: 'running', progress: 5, message: 'Connecting to Strava…'});
+      });
+    }
+    loadStatus();
+    loadStatsStatus();
+    setInterval(loadStatus, 1500);
+    setInterval(loadStatsStatus, 2000);
+    if(statsBtn){
+      statsBtn.addEventListener('click', async ()=>{
+        statsBtn.disabled = true;
+        statsBtn.textContent = 'Refreshing stats…';
+        try{
+          const res = await fetch('/profile/refresh_stats',{method:'POST'});
+          if(!res.ok) throw new Error();
+          const body = await res.json();
+          log.innerHTML = `<div class="log-entry">${body.message || 'Stats refreshed.'}</div>`;
+          loadStatsStatus();
+        }catch(err){
+          log.innerHTML = `<div class="log-entry" style="border-color:#f87171;color:#fca5a5;">Unable to refresh stats.</div>`;
+        }finally{
+          statsBtn.disabled = false;
+          statsBtn.textContent = 'Rebuild stats only';
+        }
+      });
+    }
+  })();
+  </script>
+</body>
+</html>

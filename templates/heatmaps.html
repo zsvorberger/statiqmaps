@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    {% include "_analytics.html" %}
+  <title>Ride Heatmaps + Coverage</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background:#f4f7fb; color:#0f172a; margin:0; }
+    #map { height: 75vh; width: 100%; margin: 10px auto 40px; max-width:1200px; border-radius:24px; overflow:hidden; box-shadow:0 20px 50px rgba(15,23,42,0.15); }
+    select, label, input, button { font-size: 14px; }
+    button { cursor:pointer; }
+    .badge { font-weight:600; background:#0ea5e9; color:#fff; padding:4px 10px; border-radius:999px; display:inline-block; }
+    .chip-group{display:flex;flex-wrap:wrap;gap:8px;}
+    .chip{border:1px solid #cbd5f5;background:#fff;color:#0f172a;padding:4px 12px;border-radius:999px;font-size:.85rem;cursor:pointer;}
+    .chip.active{background:#0ea5e9;color:#fff;border-color:#0ea5e9;}
+    .top-controls{max-width:1200px;margin:20px auto;display:flex;flex-wrap:wrap;gap:16px;justify-content:center;}
+    .control-panel{flex:1 1 480px;background:#fff;border-radius:22px;padding:18px 22px;box-shadow:0 25px 50px rgba(15,23,42,0.12);text-align:left;}
+    .panel-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-size:1.05rem;font-weight:600;color:#0f172a;}
+    .panel-title span{font-weight:400;font-size:.85rem;color:#64748b;}
+    .control-block{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px;}
+    .control-label{font-size:.78rem;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.08em;}
+    .control-block label{font-size:.9rem;color:#475569;}
+    .filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:12px;}
+    .filter-grid label{display:flex;flex-direction:column;font-size:.8rem;color:#475569;gap:4px;}
+    .slider-row{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;}
+    .slider-wrap{display:flex;align-items:center;gap:8px;background:#f8fafc;border-radius:999px;padding:6px 12px;border:1px solid #e2e8f0;}
+    .chip-section{margin:10px 0;}
+    .inline-group{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:10px;}
+    .btn-primary{background:#0ea5e9;border:none;border-radius:999px;color:#fff;padding:8px 18px;font-weight:600;}
+    .link-note{margin:10px auto 0;max-width:1200px;}
+    @media(max-width:720px){.slider-row{flex-direction:column;align-items:flex-start;}}
+  </style>
+
+  <script>
+    window.PMTILES_BASE_URL = "{{ pmtiles_base_url|default('') }}";
+    window.PMTILES_ASSETS = {{ pmtiles_assets|default({})|tojson }};
+    function pmtilesAsset(name) {
+      const assetMap = window.PMTILES_ASSETS || {};
+      const explicit = (assetMap[name] || "").trim();
+      if (explicit) {
+        const cleanExplicit = explicit.replace(/\/+$/, "");
+        return `pmtiles://${cleanExplicit}`;
+      }
+      const base = (window.PMTILES_BASE_URL || "").trim();
+      if (!base) {
+        return null;
+      }
+      const cleanBase = base.replace(/\/+$/, "");
+      return `pmtiles://${cleanBase}/${name}`;
+    }
+  </script>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <!-- Heat (for optional glow mode) -->
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+</head>
+<body>
+  <div style="font-size:0.72rem;color:#64748b;font-style:italic;margin:12px auto 4px;max-width:1200px;text-align:left;padding:0 12px;">
+    Strava activity data used with athlete permission.
+  </div>
+  <h1>Ride Heatmaps</h1>
+
+  <div class="top-controls">
+    <div class="control-panel" id="toolbar">
+      <div class="panel-title">
+        <div>Ride view</div>
+        <span>Filter which activities feed the base layer.</span>
+      </div>
+      <div class="control-block">
+        <span class="control-label">Mode</span>
+        <label><input type="radio" name="mode" value="lines" checked> Lines</label>
+        <label><input type="radio" name="mode" value="glow"> Glow</label>
+      </div>
+      <div class="filter-grid">
+        <label>Year
+          <select id="year">
+            <option value="all">All</option>
+            {% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Bike
+          <select id="bike">
+            <option value="all">All</option>
+            {% for bid,bname in bikes %}<option value="{{ bid }}">{{ bname }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Weekday
+          <select id="weekday">
+            <option value="all">All</option>
+            <option value="0">Monday</option>
+            <option value="1">Tuesday</option>
+            <option value="2">Wednesday</option>
+            <option value="3">Thursday</option>
+            <option value="4">Friday</option>
+            <option value="5">Saturday</option>
+            <option value="6">Sunday</option>
+          </select>
+        </label>
+        <label>Month
+          <select id="month">
+            <option value="all">All</option>
+            <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+            <option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option>
+            <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+            <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+          </select>
+        </label>
+      </div>
+      <div class="slider-row">
+        <div class="slider-wrap">
+          <span>Width</span>
+          <input id="width" type="range" min="1" max="5" value="2" />
+        </div>
+        <div class="slider-wrap">
+          <span>Opacity</span>
+          <input id="opacity" type="range" min="10" max="70" value="30" />
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="link-note">
+    <a href="{{ url_for('unique_miles') }}" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-weight:600;color:#0ea5e9;">
+      Open the full Unique Miles dashboard →
+    </a>
+  </p>
+
+  <div id="map"></div>
+
+  <script>
+    // segments: [{coords:[[lat,lng]...], year:int|null, month:int|null, weekday_num:int|null, bike_id, bike_name}]
+    const allSegments = {{ segments | tojson }};
+    const hotspot = findHotspotCenter(allSegments);
+    const zoomOnHotspot = hotspot ? 16 : 11;
+    const mapCenter = hotspot || [40.4406, -79.9959];
+    const map = L.map('map', { preferCanvas: true }).setView(mapCenter, zoomOnHotspot);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // --- Existing layers/data (unchanged behavior) ---
+    let lineLayers = [];
+    let heatLayer = null;
+
+    function getFilters() {
+      const year = document.getElementById('year').value;
+      const bike = document.getElementById('bike').value;
+      const weekday = document.getElementById('weekday').value;
+      const month = document.getElementById('month').value;
+      return {
+        year: year === 'all' ? 'all' : Number(year),
+        bike,
+        weekday: weekday === 'all' ? 'all' : Number(weekday),
+        month: month === 'all' ? 'all' : Number(month),
+      };
+    }
+
+    function applyFilters() {
+      const f = getFilters();
+      return allSegments.filter(s => {
+        if (f.year !== 'all' && s.year !== f.year) return false;
+        if (f.bike !== 'all' && s.bike_id !== f.bike) return false;
+        if (f.weekday !== 'all' && s.weekday_num !== f.weekday) return false;
+        if (f.month !== 'all' && s.month !== f.month) return false;
+        return true;
+      });
+    }
+
+    function findHotspotCenter(segments) {
+      const buckets = new Map();
+      let latSum = 0;
+      let lngSum = 0;
+      let sampleCount = 0;
+      segments.forEach(seg => {
+        const coords = seg.coords || [];
+        if (!coords.length) return;
+        const step = Math.max(1, Math.floor(coords.length / 30));
+        for (let i = 0; i < coords.length; i += step) {
+          const [lat, lng] = coords[i];
+          latSum += lat;
+          lngSum += lng;
+          sampleCount++;
+          const bucketKey = `${Math.round(lat * 20) / 20}_${Math.round(lng * 20) / 20}`;
+          const bucket = buckets.get(bucketKey) || { count: 0, lat: 0, lng: 0 };
+          bucket.count += 1;
+          bucket.lat += lat;
+          bucket.lng += lng;
+          buckets.set(bucketKey, bucket);
+        }
+      });
+      if (!sampleCount) return null;
+      let best = null;
+      buckets.forEach(b => {
+        if (!best || b.count > best.count) best = b;
+      });
+      if (best && best.count) {
+        return [best.lat / best.count, best.lng / best.count];
+      }
+      return [latSum / sampleCount, lngSum / sampleCount];
+    }
+
+    function fitToSegments(segments) {
+      const pts = [];
+      segments.forEach(s => s.coords.forEach(p => pts.push(p)));
+      if (!pts.length) return;
+      const bounds = L.latLngBounds(pts);
+      const latSpan = bounds.getNorth() - bounds.getSouth();
+      const lngSpan = bounds.getEast() - bounds.getWest();
+      const span = Math.max(latSpan, lngSpan);
+
+      if (span <= 0.6) {
+        map.fitBounds(bounds.pad(0.05));
+        return;
+      }
+
+      const focus = findHotspotCenter(segments);
+      if (focus) {
+        let zoom;
+        if (span <= 1.5) zoom = 11;
+        else if (span <= 3) zoom = 9;
+        else if (span <= 7) zoom = 8;
+        else if (span <= 15) zoom = 7;
+        else zoom = 5;
+        map.setView(focus, zoom);
+        return;
+      }
+
+      map.fitBounds(bounds.pad(0.05));
+    }
+
+    // ---- Lines mode ----
+    function clearLines(){ lineLayers.forEach(l => map.removeLayer(l)); lineLayers = []; }
+    function drawLines(segments) {
+      clearLines();
+      const width = Number(document.getElementById('width').value);
+      const opacity = Number(document.getElementById('opacity').value)/100;
+      segments.forEach(s => {
+        const layer = L.polyline(s.coords, {
+          renderer: map.getRenderer(map),
+          weight: width,
+          opacity: opacity,
+          color: '#ff2d2d',
+          lineJoin: 'round',
+          lineCap: 'round',
+          smoothFactor: 1.0
+        }).addTo(map);
+        lineLayers.push(layer);
+      });
+    }
+
+    // ---- Glow mode ----
+    function clearHeat(){ if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; } }
+    function drawGlow(segments) {
+      clearHeat();
+      const pts = [];
+      segments.forEach(s => s.coords.forEach(p => pts.push(p)));
+      heatLayer = L.heatLayer(pts, { radius: 2, blur: 4, maxZoom: 16 }).addTo(map);
+    }
+
+    function refresh() {
+      const segs = applyFilters();
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      if (mode === 'lines') {
+        clearHeat();
+        drawLines(segs);
+      } else {
+        clearLines();
+        drawGlow(segs);
+      }
+      if (segs.length) fitToSegments(segs);
+      // keep coverage layers; they are independent overlays
+    }
+
+    // Init + listeners (existing)
+    refresh();
+    document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', refresh));
+    ['year','bike','weekday','month'].forEach(id => document.getElementById(id).addEventListener('change', refresh));
+    ['width','opacity'].forEach(id => document.getElementById(id).addEventListener('input', () => {
+      if (document.querySelector('input[name="mode"]:checked').value === 'lines') refresh();
+    }));
+
+    // ----------------- Coverage + unique overlays -----------------
+    let coverageLayer = null;
+    let newMilesLayer = null;
+    document.getElementById('bike').addEventListener('change', refresh);
+  </script>
+</body>
+</html>

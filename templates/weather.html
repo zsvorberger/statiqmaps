@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    {% include "_analytics.html" %}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Environment Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    >
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css"
+    >
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/gridstack@9.2.1/dist/gridstack.min.css"
+    >
+    <style>
+      :root {
+        --bg: #0c1116;
+        --panel: #151c24;
+        --panel-2: #0f1620;
+        --text: #eef2f6;
+        --muted: #9aa7b7;
+        --accent: #4cc9f0;
+        --accent-2: #f4b24a;
+        --grid: rgba(255, 255, 255, 0.06);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at top left, #1a2633 0%, var(--bg) 45%);
+        min-height: 100vh;
+      }
+
+      .page {
+        padding: 28px 28px 40px;
+        position: relative;
+        z-index: 2;
+      }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 24px;
+        margin-bottom: 22px;
+      }
+
+      header h1 {
+        margin: 0 0 6px;
+        font-size: 32px;
+        letter-spacing: 0.5px;
+      }
+
+      header p {
+        margin: 0;
+        color: var(--muted);
+        max-width: 520px;
+      }
+
+      .header-actions {
+        display: flex;
+        gap: 12px;
+      }
+
+      .ghost-btn {
+        background: transparent;
+        border: 1px solid var(--grid);
+        color: var(--text);
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .grid-stack {
+        background-image: linear-gradient(var(--grid) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+        background-size: 24px 24px;
+        padding: 8px;
+        border-radius: 16px;
+        gap: 14px;
+      }
+
+      body:not(.grid-ready) .grid-stack-item {
+        position: static !important;
+        width: auto !important;
+        height: auto !important;
+        margin-bottom: 16px;
+      }
+
+      body:not(.grid-ready) .grid-stack-item-content {
+        height: auto !important;
+      }
+
+      .grid-stack-item-content {
+        height: 100%;
+      }
+
+      .panel {
+        background: linear-gradient(160deg, var(--panel), var(--panel-2));
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 18px 20px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        overflow: hidden;
+        box-shadow: 0 18px 32px rgba(0, 0, 0, 0.25);
+      }
+
+      .panel h3 {
+        margin: 0;
+        font-size: 16px;
+        letter-spacing: 0.3px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .panel .panel-sub {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: -4px;
+      }
+
+      .control-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+      }
+
+      label {
+        font-size: 12px;
+        color: var(--muted);
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      input,
+      select,
+      button,
+      textarea {
+        font-family: inherit;
+      }
+
+      input,
+      select {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: #0b1219;
+        color: var(--text);
+      }
+
+      .btn {
+        background: var(--accent);
+        color: #041018;
+        border: none;
+        padding: 10px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .btn.secondary {
+        background: transparent;
+        border: 1px solid var(--grid);
+        color: var(--text);
+      }
+
+      .var-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 8px;
+        max-height: 140px;
+        overflow: auto;
+        padding-right: 6px;
+      }
+
+      .var-pill {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 10px;
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+
+      .map-layer-panel {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        background: rgba(12, 17, 22, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        padding: 12px;
+        width: 220px;
+        font-size: 12px;
+        color: var(--text);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+        z-index: 3;
+      }
+
+      .map-layer-panel h4 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        letter-spacing: 0.3px;
+      }
+
+      .map-layer-panel .layer-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 6px 0;
+      }
+
+      .map-layer-panel .layer-row label {
+        margin: 0;
+        font-size: 12px;
+        color: var(--text);
+      }
+
+      .map-layer-panel input[type="checkbox"] {
+        width: auto;
+      }
+
+      .map-layer-panel .panel-note {
+        color: var(--muted);
+        font-size: 11px;
+        margin-top: 8px;
+      }
+
+      .maplibregl-popup-content {
+        background: #0f1620;
+        color: var(--text);
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 12px;
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+
+      .maplibregl-popup-tip {
+        border-top-color: #0f1620;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 10px;
+      }
+
+      .summary-card {
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .summary-card h4 {
+        margin: 0 0 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .summary-card p {
+        margin: 0;
+        font-size: 16px;
+      }
+
+      canvas {
+        width: 100%;
+        height: 100%;
+      }
+
+      .chart-wrap {
+        flex: 1;
+        min-height: 160px;
+        background: rgba(5, 8, 12, 0.55);
+        border-radius: 12px;
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .error {
+        background: rgba(244, 178, 74, 0.15);
+        border: 1px solid rgba(244, 178, 74, 0.5);
+        color: var(--accent-2);
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-size: 13px;
+        display: none;
+      }
+
+      .loading {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 12px;
+      }
+
+      .table-wrap {
+        overflow: auto;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(5, 8, 12, 0.5);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+
+      th,
+      td {
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        text-align: left;
+        white-space: nowrap;
+      }
+
+      th {
+        color: var(--muted);
+        position: sticky;
+        top: 0;
+        background: #0b1219;
+        z-index: 2;
+      }
+
+      .legend-note {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .table-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .pagination {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      @media (max-width: 900px) {
+        header {
+          flex-direction: column;
+        }
+
+        .grid-stack {
+          padding: 0;
+        }
+      }
+
+      .map-shell {
+        position: relative;
+        height: 360px;
+        min-height: 320px;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .map-shell.is-expanded {
+        position: fixed;
+        inset: 18px;
+        height: auto;
+        z-index: 2000;
+        border-radius: 18px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      }
+
+      body.map-expanded {
+        overflow: hidden;
+      }
+
+      .map-expand-toggle {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 5;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(12, 17, 22, 0.85);
+        color: var(--text);
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      #map {
+        width: 100%;
+        height: 100%;
+      }
+
+      @media (max-width: 900px) {
+        .map-shell {
+          height: 320px;
+        }
+        .map-layer-panel {
+          left: 10px;
+          right: 10px;
+          width: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a href="/how-this-works" style="position:fixed;top:18px;right:18px;padding:6px 12px;border-radius:999px;border:1px solid rgba(148,163,184,0.6);color:#0f172a;text-decoration:none;font-size:0.8rem;background:#fff;z-index:1000;">Support</a>
+    <div class="page">
+      <header>
+        <div>
+          <h1>Environment Explorer</h1>
+          <p>
+            A modular weather, solar, and air quality dashboard powered by Open-Meteo. Click the map,
+            tailor the variables, and save your layout.
+          </p>
+        </div>
+        <div class="header-actions">
+          <button class="ghost-btn" id="resetLayoutBtn">Reset Layout</button>
+          <button class="ghost-btn" id="refreshBtn">Refresh</button>
+        </div>
+      </header>
+
+      <div class="loading" id="loadingState">Loading dashboard…</div>
+      <div class="error" id="errorBox"></div>
+
+      <div class="grid-stack" id="dashboard">
+        <div class="grid-stack-item" gs-x="0" gs-y="0" gs-w="5" gs-h="4">
+          <div class="grid-stack-item-content panel">
+            <h3>Map Picker</h3>
+            <p class="panel-sub">Click anywhere to set a location. Coordinates update instantly.</p>
+            <div class="map-shell">
+              <button class="map-expand-toggle" id="toggleMapSize" type="button">Expand</button>
+              <div id="map"></div>
+              <div class="map-layer-panel" id="weatherPanel">
+                <h4>Weather (NWS)</h4>
+                <div class="layer-row">
+                  <label for="chkRadar">Live radar (NEXRAD)</label>
+                  <input id="chkRadar" type="checkbox">
+                </div>
+                <div class="layer-row">
+                  <label for="chkAlerts">Active alerts</label>
+                  <input id="chkAlerts" type="checkbox">
+                </div>
+                <div class="layer-row">
+                  <label for="chkStations">Surface stations</label>
+                  <input id="chkStations" type="checkbox">
+                </div>
+                <div class="layer-row">
+                  <label for="chkPrecip">Precip analysis</label>
+                  <input id="chkPrecip" type="checkbox">
+                </div>
+                <div class="layer-row">
+                  <label for="chkSnow">Snow analysis</label>
+                  <input id="chkSnow" type="checkbox">
+                </div>
+                <div class="panel-note" id="weatherStatus">All NWS layers are off by default.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-stack-item" gs-x="5" gs-y="0" gs-w="7" gs-h="4">
+          <div class="grid-stack-item-content panel">
+            <h3>Controls</h3>
+            <p class="panel-sub">Choose a category, time mode, and variables.</p>
+            <div class="control-grid">
+              <div>
+                <label for="categorySelect">Category</label>
+                <select id="categorySelect">
+                  <option value="weather">Weather</option>
+                  <option value="solar">Solar</option>
+                  <option value="air_quality">Air Quality</option>
+                </select>
+              </div>
+              <div>
+                <label for="modeSelect">Mode</label>
+                <select id="modeSelect">
+                  <option value="forecast_hourly">Forecast Hourly</option>
+                  <option value="historical_hourly">Historical Hourly</option>
+                  <option value="historical_daily">Historical Daily</option>
+                </select>
+              </div>
+              <div>
+                <label for="aggregationSelect">Aggregation</label>
+                <select id="aggregationSelect">
+                  <option value="raw">Raw</option>
+                  <option value="daily_avg">Daily Avg</option>
+                  <option value="weekly_avg">Weekly Avg</option>
+                  <option value="monthly_avg">Monthly Avg</option>
+                </select>
+              </div>
+              <div>
+                <label for="startDate">Start</label>
+                <input type="date" id="startDate">
+              </div>
+              <div>
+                <label for="endDate">End</label>
+                <input type="date" id="endDate">
+              </div>
+              <div>
+                <label for="forecastDays">Forecast Days</label>
+                <select id="forecastDays">
+                  <option value="3">3</option>
+                  <option value="5">5</option>
+                  <option value="7" selected>7</option>
+                  <option value="10">10</option>
+                  <option value="14">14</option>
+                </select>
+              </div>
+              <div>
+                <label for="analysisRange">Summary/Table Range</label>
+                <select id="analysisRange">
+                  <option value="all">All Loaded</option>
+                  <option value="last_7">Last 7</option>
+                  <option value="last_30">Last 30</option>
+                  <option value="last_90">Last 90</option>
+                </select>
+              </div>
+              <div>
+                <label for="tableSort">Table Sort</label>
+                <select id="tableSort">
+                  <option value="timestamp_desc">Time (newest)</option>
+                  <option value="timestamp_asc">Time (oldest)</option>
+                </select>
+              </div>
+            </div>
+            <div class="control-grid">
+              <div>
+                <label>Quick Range</label>
+                <div class="table-actions">
+                  <button class="btn secondary" data-range="7">7d</button>
+                  <button class="btn secondary" data-range="30">30d</button>
+                  <button class="btn secondary" data-range="365">1y</button>
+                </div>
+              </div>
+              <div>
+                <label>Actions</label>
+                <div class="table-actions">
+                  <button class="btn" id="applyBtn">Apply</button>
+                  <button class="btn secondary" id="clearVarsBtn">Clear Vars</button>
+                  <button class="btn secondary" id="recommendedBtn">Recommended</button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label>Variables</label>
+              <div id="variableList" class="var-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-stack-item" gs-x="0" gs-y="4" gs-w="4" gs-h="3">
+          <div class="grid-stack-item-content panel">
+            <h3>Summary</h3>
+            <p class="panel-sub" id="summaryMeta">No data loaded yet.</p>
+            <div class="summary-grid" id="summaryGrid"></div>
+          </div>
+        </div>
+
+        <div class="grid-stack-item" gs-x="4" gs-y="4" gs-w="4" gs-h="3">
+          <div class="grid-stack-item-content panel">
+            <h3>Temperature and Humidity</h3>
+            <p class="panel-sub">Smoothed lines, no point clutter.</p>
+            <div class="chart-wrap">
+              <canvas id="tempChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-stack-item" gs-x="8" gs-y="4" gs-w="4" gs-h="3">
+          <div class="grid-stack-item-content panel">
+            <h3>Wind</h3>
+            <p class="panel-sub">Speed and gusts, direction on secondary axis.</p>
+            <div class="chart-wrap">
+              <canvas id="windChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-stack-item" gs-x="0" gs-y="7" gs-w="4" gs-h="3">
+          <div class="grid-stack-item-content panel">
+            <h3>Precipitation and Snow</h3>
+            <p class="panel-sub">Bars with muted fill.</p>
+            <div class="chart-wrap">
+              <canvas id="precipChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-stack-item" gs-x="4" gs-y="7" gs-w="4" gs-h="3">
+          <div class="grid-stack-item-content panel">
+            <h3>Solar</h3>
+            <p class="panel-sub">Radiation and UV.</p>
+            <div class="chart-wrap">
+              <canvas id="solarChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-stack-item" gs-x="8" gs-y="7" gs-w="4" gs-h="3">
+          <div class="grid-stack-item-content panel">
+            <h3>Air Quality</h3>
+            <p class="panel-sub">AQI and particulates.</p>
+            <div class="chart-wrap">
+              <canvas id="airChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-stack-item" gs-x="0" gs-y="10" gs-w="12" gs-h="4">
+          <div class="grid-stack-item-content panel">
+            <h3>Data Table</h3>
+            <p class="panel-sub">Explore the underlying rows and export CSV.</p>
+            <div class="table-actions">
+              <button class="btn secondary" id="downloadCsvBtn">Download CSV</button>
+              <div class="pagination" id="pagination"></div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead id="tableHead"></thead>
+                <tbody id="tableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gridstack@9.2.1/dist/gridstack-all.js"></script>
+    <script>
+      const state = {
+        lat: 40.4406,
+        lon: -79.9959,
+        category: "weather",
+        mode: "forecast_hourly",
+        aggregation: "raw",
+        startDate: null,
+        endDate: null,
+        days: 7,
+        variables: [],
+      };
+
+      const charts = {};
+      let tableRows = [];
+      let currentPage = 1;
+      const pageSize = 25;
+
+      const variableLabels = (name) =>
+        name
+          .replace(/_/g, " ")
+          .replace(/\\b\\w/g, (m) => m.toUpperCase());
+
+      const palette = [
+        "#4cc9f0",
+        "#f4b24a",
+        "#84f0c6",
+        "#f25f5c",
+        "#70a1ff",
+        "#ffd166",
+        "#6ee7b7",
+        "#f97316",
+      ];
+
+      function debounce(fn, wait) {
+        let t;
+        return (...args) => {
+          clearTimeout(t);
+          t = setTimeout(() => fn(...args), wait);
+        };
+      }
+
+      function formatTimestamp(value) {
+        if (!value) return "";
+        const cleaned = value.replace("Z", "");
+        const parsed = new Date(cleaned);
+        if (Number.isNaN(parsed.getTime())) {
+          return value;
+        }
+        return parsed.toLocaleString(undefined, {
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      function setDefaultDates() {
+        const today = new Date();
+        const end = new Date(today.getTime() - 86400000);
+        const start = new Date(end.getTime() - 7 * 86400000);
+        state.startDate = start.toISOString().slice(0, 10);
+        state.endDate = end.toISOString().slice(0, 10);
+        document.getElementById("startDate").value = state.startDate;
+        document.getElementById("endDate").value = state.endDate;
+      }
+
+      let mapInstance = null;
+      let mapMarker = null;
+      let weatherLayers = [];
+      let radarRefreshTimer = null;
+
+      const BASEMAP_STYLE = {
+        version: 8,
+        sources: {
+          osm: {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            maxzoom: 19,
+          },
+        },
+        layers: [{ id: "osm", type: "raster", source: "osm" }],
+      };
+      const FALLBACK_STYLE = {
+        version: 8,
+        sources: {
+          osm: {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            maxzoom: 19,
+          },
+        },
+        layers: [{ id: "osm", type: "raster", source: "osm" }],
+      };
+
+      const NWS_ENDPOINTS = {
+        radar: "https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows",
+        alerts: "https://opengeo.ncep.noaa.gov/geoserver/wwa/ows",
+        stations: "https://opengeo.ncep.noaa.gov/geoserver/surface/ows",
+        precip: "https://opengeo.ncep.noaa.gov/geoserver/precip/ows"
+      };
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function cleanUrl(value) {
+        return (value || "").replace(/\\+$/, "");
+      }
+
+      function buildWmsTileUrl(baseUrl, layers, extraParams = "") {
+        const base = cleanUrl(baseUrl);
+        const encoded = encodeURIComponent(layers);
+        return `${base}?service=WMS&request=GetMap&version=1.1.1&layers=${encoded}&styles=&format=image/png&transparent=true&width=256&height=256&srs=EPSG:3857&bbox={bbox-epsg-3857}${extraParams}`;
+      }
+
+      function updateWeatherStatus(message) {
+        const el = document.getElementById("weatherStatus");
+        if (el) el.textContent = message;
+      }
+
+      function ensureWeatherLayer(spec) {
+        if (mapInstance.getSource(spec.sourceId)) return;
+        mapInstance.addSource(spec.sourceId, {
+          type: "raster",
+          tiles: [spec.tileUrl()],
+          tileSize: 256,
+          maxzoom: spec.maxzoom,
+          attribution: "NOAA NWS",
+        });
+        mapInstance.addLayer({
+          id: spec.layerId,
+          type: "raster",
+          source: spec.sourceId,
+          minzoom: spec.minzoom,
+          maxzoom: spec.maxzoom,
+          paint: { "raster-opacity": spec.opacity },
+          layout: { visibility: "none" },
+        });
+      }
+
+      function removeWeatherLayer(spec) {
+        if (mapInstance.getLayer(spec.layerId)) {
+          mapInstance.removeLayer(spec.layerId);
+        }
+        if (mapInstance.getSource(spec.sourceId)) {
+          mapInstance.removeSource(spec.sourceId);
+        }
+      }
+
+      function scheduleRadarRefresh() {
+        if (radarRefreshTimer) return;
+        radarRefreshTimer = setTimeout(() => {
+          radarRefreshTimer = null;
+          const radarSpec = weatherLayers.find((layer) => layer.key === "radar");
+          if (!radarSpec) return;
+          if (!mapInstance.getLayer(radarSpec.layerId)) return;
+          if (mapInstance.getLayoutProperty(radarSpec.layerId, "visibility") !== "visible") return;
+          removeWeatherLayer(radarSpec);
+          radarSpec.cacheBust = Date.now();
+          ensureWeatherLayer(radarSpec);
+          mapInstance.setLayoutProperty(radarSpec.layerId, "visibility", "visible");
+          scheduleRadarRefresh();
+        }, 5 * 60 * 1000);
+      }
+
+      function stopRadarRefresh() {
+        if (radarRefreshTimer) {
+          clearTimeout(radarRefreshTimer);
+          radarRefreshTimer = null;
+        }
+      }
+
+      async function syncWeatherLayers() {
+        if (!mapInstance) return;
+        const radarOn = document.getElementById("chkRadar")?.checked;
+        const alertsOn = document.getElementById("chkAlerts")?.checked;
+        const stationsOn = document.getElementById("chkStations")?.checked;
+        const precipOn = document.getElementById("chkPrecip")?.checked;
+        const snowOn = document.getElementById("chkSnow")?.checked;
+
+        for (const spec of weatherLayers) {
+          const on =
+            (spec.key === "radar" && radarOn) ||
+            (spec.key === "alerts" && alertsOn) ||
+            (spec.key === "stations" && stationsOn) ||
+            (spec.key === "precip" && precipOn) ||
+            (spec.key === "snow" && snowOn);
+
+          if (on) {
+            ensureWeatherLayer(spec);
+            mapInstance.setLayoutProperty(spec.layerId, "visibility", "visible");
+          } else if (mapInstance.getLayer(spec.layerId)) {
+            mapInstance.setLayoutProperty(spec.layerId, "visibility", "none");
+          }
+        }
+
+        if (radarOn) {
+          scheduleRadarRefresh();
+        } else {
+          stopRadarRefresh();
+        }
+
+        const activeCount = weatherLayers.filter(
+          (layer) =>
+            mapInstance.getLayer(layer.layerId) &&
+            mapInstance.getLayoutProperty(layer.layerId, "visibility") === "visible"
+        ).length;
+        updateWeatherStatus(
+          activeCount ? "NWS layers active. Radar refreshes every 5 minutes." : "All NWS layers are off by default."
+        );
+      }
+
+      async function initWeatherLayers() {
+        const radarCacheBust = Date.now();
+        weatherLayers = [
+          {
+            key: "radar",
+            label: "Live radar",
+            url: NWS_ENDPOINTS.radar,
+            layers: "conus_bref_qcd",
+            sourceId: "nws-radar-src",
+            layerId: "nws-radar",
+            minzoom: 0,
+            maxzoom: 12,
+            opacity: 0.85,
+            cacheBust: radarCacheBust,
+            tileUrl() {
+              const bust = this.cacheBust ? `&time=${this.cacheBust}` : "";
+              return buildWmsTileUrl(this.url, this.layers, bust);
+            },
+          },
+          {
+            key: "alerts",
+            label: "Alerts",
+            url: NWS_ENDPOINTS.alerts,
+            layers: "wwa",
+            sourceId: "nws-alerts-src",
+            layerId: "nws-alerts",
+            minzoom: 0,
+            maxzoom: 12,
+            opacity: 0.7,
+            tileUrl() {
+              return buildWmsTileUrl(this.url, this.layers);
+            },
+          },
+          {
+            key: "stations",
+            label: "Surface stations",
+            url: NWS_ENDPOINTS.stations,
+            layers: "surface_obs",
+            sourceId: "nws-stations-src",
+            layerId: "nws-stations",
+            minzoom: 4,
+            maxzoom: 14,
+            opacity: 0.9,
+            tileUrl() {
+              return buildWmsTileUrl(this.url, this.layers);
+            },
+          },
+        ];
+        const precipEl = document.getElementById("chkPrecip");
+        const snowEl = document.getElementById("chkSnow");
+        if (precipEl) precipEl.disabled = true;
+        if (snowEl) snowEl.disabled = true;
+        updateWeatherStatus("Precip/snow layers disabled (no WMS feature requests).");
+      }
+
+      function initMap() {
+        if (!window.maplibregl) {
+          document.getElementById("errorBox").textContent =
+            "Map library failed to load. The rest of the dashboard is still usable.";
+          document.getElementById("errorBox").style.display = "block";
+          return;
+        }
+        if (!document.getElementById("map")) {
+          const box = document.getElementById("errorBox");
+          if (box) {
+            box.textContent = "Map container missing.";
+            box.style.display = "block";
+          }
+          return;
+        }
+        const map = new maplibregl.Map({
+          container: "map",
+          style: BASEMAP_STYLE,
+          center: [state.lon, state.lat],
+          zoom: 7,
+          attributionControl: false,
+        });
+        mapInstance = map;
+        map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+        map.addControl(new maplibregl.AttributionControl({ compact: true }));
+
+        let fallbackApplied = false;
+        map.on("error", (err) => {
+          const box = document.getElementById("errorBox");
+          if (!box) return;
+          const msg = err && err.error && err.error.message ? err.error.message : "Map failed to load.";
+          const isDecodeError = msg.toLowerCase().includes("source image could not be decoded");
+          const fromNwsLayer = err && err.sourceId && err.sourceId.startsWith("nws-");
+          if (isDecodeError && fromNwsLayer) {
+            return;
+          }
+          box.textContent = msg;
+          box.style.display = "block";
+          if (!fallbackApplied && !fromNwsLayer) {
+            fallbackApplied = true;
+            map.setStyle(FALLBACK_STYLE);
+          }
+        });
+
+        map.on("load", async () => {
+          mapMarker = new maplibregl.Marker({ color: "#f4b24a" })
+            .setLngLat([state.lon, state.lat])
+            .addTo(map);
+          await initWeatherLayers();
+          syncWeatherLayers();
+          map.resize();
+        });
+
+        map.on("click", async (e) => {
+          state.lat = +e.lngLat.lat.toFixed(4);
+          state.lon = +e.lngLat.lng.toFixed(4);
+          if (mapMarker) mapMarker.setLngLat(e.lngLat);
+          fetchEnvironment();
+        });
+
+        ["chkRadar", "chkAlerts", "chkStations", "chkPrecip", "chkSnow"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.addEventListener("change", syncWeatherLayers);
+        });
+
+        const toggleBtn = document.getElementById("toggleMapSize");
+        if (toggleBtn) {
+          toggleBtn.addEventListener("click", () => {
+            const shell = document.querySelector(".map-shell");
+            if (!shell) return;
+            const expanded = shell.classList.toggle("is-expanded");
+            document.body.classList.toggle("map-expanded", expanded);
+            toggleBtn.textContent = expanded ? "Minimize" : "Expand";
+            setTimeout(() => {
+              if (mapInstance && mapInstance.resize) mapInstance.resize();
+            }, 120);
+          });
+        }
+
+        window.addEventListener("keydown", (e) => {
+          if (e.key !== "Escape") return;
+          const shell = document.querySelector(".map-shell");
+          const btn = document.getElementById("toggleMapSize");
+          if (shell && shell.classList.contains("is-expanded")) {
+            shell.classList.remove("is-expanded");
+            document.body.classList.remove("map-expanded");
+            if (btn) btn.textContent = "Expand";
+            setTimeout(() => {
+              if (mapInstance && mapInstance.resize) mapInstance.resize();
+            }, 120);
+          }
+        });
+
+        window.addEventListener("resize", () => {
+          if (mapInstance && mapInstance.resize) mapInstance.resize();
+        });
+      }
+
+      function initGrid() {
+        if (!window.GridStack) {
+          return;
+        }
+        try {
+          document.body.classList.add("grid-ready");
+          const grid = GridStack.init({ float: true, cellHeight: 110, margin: 10 });
+          const saved = localStorage.getItem("envExplorerLayout");
+          if (saved) {
+            grid.load(JSON.parse(saved));
+          }
+          grid.on("change", () => {
+            localStorage.setItem("envExplorerLayout", JSON.stringify(grid.save()));
+            if (mapInstance && mapInstance.resize) {
+              mapInstance.resize();
+            }
+          });
+          document.getElementById("resetLayoutBtn").addEventListener("click", () => {
+            localStorage.removeItem("envExplorerLayout");
+            window.location.reload();
+          });
+          setTimeout(() => {
+            if (mapInstance && mapInstance.resize) {
+              mapInstance.resize();
+            }
+          }, 350);
+        } catch (err) {
+          document.body.classList.remove("grid-ready");
+          const box = document.getElementById("errorBox");
+          if (box) {
+            box.textContent = err && err.message ? err.message : "Grid layout failed to initialize.";
+            box.style.display = "block";
+          }
+        }
+      }
+
+      function updateControls() {
+        document.getElementById("categorySelect").value = state.category;
+        document.getElementById("modeSelect").value = state.mode;
+        document.getElementById("aggregationSelect").value = state.aggregation;
+        document.getElementById("forecastDays").value = state.days;
+        document.getElementById("analysisRange").value = state.analysisRange || "all";
+      }
+
+      function renderVariableList(available) {
+        const wrap = document.getElementById("variableList");
+        wrap.innerHTML = "";
+        available.forEach((varName) => {
+          const id = `var-${varName}`;
+          const label = document.createElement("label");
+          label.className = "var-pill";
+          label.innerHTML = `<input type=\"checkbox\" id=\"${id}\" value=\"${varName}\"> ${variableLabels(varName)}`;
+          const input = label.querySelector("input");
+          input.checked = state.variables.includes(varName);
+          input.addEventListener("change", () => {
+            if (input.checked) {
+              state.variables.push(varName);
+            } else {
+              state.variables = state.variables.filter((v) => v !== varName);
+            }
+            fetchEnvironment();
+          });
+          wrap.appendChild(label);
+        });
+      }
+
+      function buildChart(canvasId, title, series, type = "line") {
+        if (!window.Chart) {
+          const box = document.getElementById("errorBox");
+          if (box) {
+            box.textContent = "Chart library failed to load. Try refreshing.";
+            box.style.display = "block";
+          }
+          return;
+        }
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        const datasets = series.map((item, idx) => ({
+          label: item.label,
+          data: item.data,
+          borderColor: palette[idx % palette.length],
+          backgroundColor: palette[idx % palette.length] + "55",
+          tension: 0.35,
+          fill: type === "line" ? false : true,
+          yAxisID: item.axis || "y",
+          type,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+        }));
+
+        if (charts[canvasId]) {
+          charts[canvasId].data.labels = series.length ? series[0].labels : [];
+          charts[canvasId].data.datasets = datasets;
+          charts[canvasId].update();
+          return;
+        }
+
+        charts[canvasId] = new Chart(ctx, {
+          type,
+          data: {
+            labels: series.length ? series[0].labels : [],
+            datasets,
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+              legend: { labels: { color: "#e9eef5" } },
+              tooltip: { enabled: true },
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: "#98a6b7",
+                  maxTicksLimit: 6,
+                },
+                grid: { display: false },
+              },
+              y: {
+                ticks: { color: "#98a6b7" },
+                grid: { color: "rgba(255,255,255,0.06)" },
+              },
+              y1: {
+                position: "right",
+                ticks: { color: "#98a6b7" },
+                grid: { drawOnChartArea: false },
+              },
+            },
+          },
+        });
+      }
+
+      function seriesToChartData(series, variables, axisOverrides = {}) {
+        const labels = series.length ? series[0].data.map((row) => formatTimestamp(row.t)) : [];
+        return variables
+          .filter((v) => series.some((s) => s.name === v))
+          .map((v) => {
+            const row = series.find((s) => s.name === v);
+            return {
+              label: variableLabels(v),
+              labels,
+              data: row.data.map((d) => d.v),
+              axis: axisOverrides[v],
+            };
+          });
+      }
+
+      function updateCharts(payload) {
+        const rawSeries = payload.series || {};
+        const seriesList = Object.keys(rawSeries).map((name) => ({
+          name,
+          data: rawSeries[name],
+        }));
+
+        const tempVars = ["temperature_2m", "apparent_temperature", "relative_humidity_2m"];
+        const windVars = ["wind_speed_10m", "wind_gusts_10m", "wind_direction_10m"];
+        const precipVars = ["precipitation", "rain", "snowfall"];
+        const solarVars = ["shortwave_radiation", "uv_index"];
+        const airVars = [
+          "us_aqi",
+          "european_aqi",
+          "pm2_5",
+          "pm10",
+          "ozone",
+          "nitrogen_dioxide",
+          "sulphur_dioxide",
+          "carbon_monoxide",
+        ];
+
+        buildChart(
+          "tempChart",
+          "Temperature and Humidity",
+          seriesToChartData(seriesList, tempVars, { relative_humidity_2m: "y1" }),
+          "line"
+        );
+        buildChart(
+          "windChart",
+          "Wind",
+          seriesToChartData(seriesList, windVars, { wind_direction_10m: "y1" }),
+          "line"
+        );
+        buildChart(
+          "precipChart",
+          "Precipitation",
+          seriesToChartData(seriesList, precipVars),
+          "bar"
+        );
+        buildChart(
+          "solarChart",
+          "Solar",
+          seriesToChartData(seriesList, solarVars),
+          "line"
+        );
+        buildChart(
+          "airChart",
+          "Air Quality",
+          seriesToChartData(seriesList, airVars),
+          "line"
+        );
+      }
+
+      function applyAnalysisRange(payload) {
+        const series = payload.series || {};
+        const timestamps = new Set();
+        Object.values(series).forEach((rows) => {
+          rows.forEach((row) => timestamps.add(row.t));
+        });
+        const sortedTimes = Array.from(timestamps).sort();
+        if (!sortedTimes.length) {
+          return payload;
+        }
+        let cutoffIndex = 0;
+        const range = state.analysisRange || "all";
+        const windowDays = range === "last_7" ? 7 : range === "last_30" ? 30 : range === "last_90" ? 90 : 0;
+        if (windowDays) {
+          const isHourly =
+            (payload.meta && payload.meta.mode && payload.meta.mode.includes("hourly")) ||
+            sortedTimes.length > 200;
+          const windowCount = isHourly ? windowDays * 24 : windowDays;
+          cutoffIndex = Math.max(0, sortedTimes.length - windowCount);
+        }
+        const allowed = new Set(sortedTimes.slice(cutoffIndex));
+        const filtered = {};
+        Object.entries(series).forEach(([varName, rows]) => {
+          filtered[varName] = rows.filter((row) => allowed.has(row.t));
+        });
+        return { ...payload, series: filtered };
+      }
+
+      function updateSummary(payload) {
+        const grid = document.getElementById("summaryGrid");
+        grid.innerHTML = "";
+        const meta = payload.meta || {};
+        document.getElementById("summaryMeta").textContent =
+          `${meta.category || "environment"} | ${meta.mode || ""} | ${meta.timezone || "UTC"}`;
+
+        const entries = [];
+        Object.entries(payload.series || {}).forEach(([varName, rows]) => {
+          const values = rows.map((row) => row.v).filter((v) => typeof v === "number");
+          if (!values.length) {
+            return;
+          }
+          const min = Math.min(...values);
+          const max = Math.max(...values);
+          const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
+          const label = variableLabels(varName);
+          entries.push({ label, min, max, avg });
+        });
+
+        entries.slice(0, 6).forEach((entry) => {
+          const card = document.createElement("div");
+          card.className = "summary-card";
+          card.innerHTML = `<h4>${entry.label}</h4><p>Min ${entry.min.toFixed(1)} / Max ${entry.max.toFixed(1)} / Avg ${entry.avg.toFixed(1)}</p>`;
+          grid.appendChild(card);
+        });
+      }
+
+      function buildTable(payload) {
+        const series = payload.series || {};
+        const timestamps = new Set();
+        Object.values(series).forEach((rows) => {
+          rows.forEach((row) => timestamps.add(row.t));
+        });
+        const sortedTimes = Array.from(timestamps).sort();
+        const variables = Object.keys(series);
+        tableRows = sortedTimes.map((ts) => {
+          const row = { timestamp: ts };
+          variables.forEach((v) => {
+            const entry = series[v].find((item) => item.t === ts);
+            row[v] = entry ? entry.v : null;
+          });
+          return row;
+        });
+        currentPage = 1;
+        renderTable(variables);
+        updateTableSortOptions(variables);
+      }
+
+      function updateTableSortOptions(variables) {
+        const select = document.getElementById("tableSort");
+        const existing = new Set(Array.from(select.options).map((o) => o.value));
+        variables.forEach((v) => {
+          const key = `var:${v}`;
+          if (!existing.has(key)) {
+            const opt = document.createElement("option");
+            opt.value = key;
+            opt.textContent = `${variableLabels(v)} (high → low)`;
+            select.appendChild(opt);
+          }
+        });
+      }
+
+      function sortRows(rows, variables) {
+        const sort = document.getElementById("tableSort").value;
+        const copied = rows.slice();
+        if (sort === "timestamp_asc") {
+          copied.sort((a, b) => (a.timestamp || "").localeCompare(b.timestamp || ""));
+        } else if (sort === "timestamp_desc") {
+          copied.sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""));
+        } else if (sort.startsWith("var:")) {
+          const key = sort.split(":")[1];
+          copied.sort((a, b) => {
+            const av = typeof a[key] === "number" ? a[key] : -Infinity;
+            const bv = typeof b[key] === "number" ? b[key] : -Infinity;
+            return bv - av;
+          });
+        }
+        return copied;
+      }
+
+      function renderTable(variables) {
+        const head = document.getElementById("tableHead");
+        const body = document.getElementById("tableBody");
+        head.innerHTML = `<tr><th>Timestamp</th>${variables.map((v) => `<th>${variableLabels(v)}</th>`).join("")}</tr>`;
+        body.innerHTML = "";
+
+        const sortedRows = sortRows(tableRows, variables);
+        const start = (currentPage - 1) * pageSize;
+        const end = start + pageSize;
+        const rows = sortedRows.slice(start, end);
+
+        rows.forEach((row) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML =
+            `<td>${formatTimestamp(row.timestamp)}</td>` +
+            variables
+              .map((v) => `<td>${row[v] === null || row[v] === undefined ? "-" : row[v]}</td>`)
+              .join("");
+          body.appendChild(tr);
+        });
+
+        const totalPages = Math.max(1, Math.ceil(tableRows.length / pageSize));
+        const pagination = document.getElementById("pagination");
+        pagination.innerHTML = "";
+        const prev = document.createElement("button");
+        prev.className = "btn secondary";
+        prev.textContent = "Prev";
+        prev.disabled = currentPage === 1;
+        prev.addEventListener("click", () => {
+          currentPage = Math.max(1, currentPage - 1);
+          renderTable(variables);
+        });
+        const next = document.createElement("button");
+        next.className = "btn secondary";
+        next.textContent = "Next";
+        next.disabled = currentPage === totalPages;
+        next.addEventListener("click", () => {
+          currentPage = Math.min(totalPages, currentPage + 1);
+          renderTable(variables);
+        });
+        const label = document.createElement("span");
+        label.textContent = `Page ${currentPage} of ${totalPages}`;
+        pagination.appendChild(prev);
+        pagination.appendChild(label);
+        pagination.appendChild(next);
+      }
+
+      function downloadCsv() {
+        if (!tableRows.length) return;
+        const variables = Object.keys(tableRows[0]).filter((v) => v !== "timestamp");
+        const headers = ["timestamp", ...variables];
+        const lines = [headers.join(",")];
+        tableRows.forEach((row) => {
+          const line = headers.map((h) => (row[h] ?? "")).join(",");
+          lines.push(line);
+        });
+        const blob = new Blob([lines.join("\\n")], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "environment-data.csv";
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
+      async function fetchEnvironment() {
+        const errorBox = document.getElementById("errorBox");
+        errorBox.style.display = "none";
+        const params = new URLSearchParams();
+        params.set("latitude", state.lat);
+        params.set("longitude", state.lon);
+        params.set("category", state.category);
+        params.set("mode", state.mode);
+        params.set("aggregation", state.aggregation);
+        if (state.mode.includes("historical")) {
+          params.set("start_date", state.startDate);
+          params.set("end_date", state.endDate);
+        } else {
+          params.set("days", state.days);
+        }
+        state.variables.forEach((v) => params.append("variables", v));
+
+        try {
+          const res = await fetch(`/api/environment?${params.toString()}`);
+          const payload = await res.json();
+          if (!payload.ok) {
+            throw new Error(payload.error || "Unable to load environment data.");
+          }
+          const available = payload.available_variables || [];
+          if (!state.variables.length) {
+            state.variables = payload.selected_variables || available.slice(0, 3);
+          } else {
+            state.variables = state.variables.filter((v) => available.includes(v));
+          }
+          renderVariableList(available);
+          const filtered = applyAnalysisRange(payload.data);
+          updateCharts(filtered);
+          updateSummary(filtered);
+          buildTable(filtered);
+        } catch (err) {
+          errorBox.textContent = err.message || "Unable to load environment data.";
+          errorBox.style.display = "block";
+        }
+      }
+
+      const debouncedFetch = debounce(fetchEnvironment, 400);
+
+      function bindControls() {
+        document.getElementById("categorySelect").addEventListener("change", (e) => {
+          state.category = e.target.value;
+          state.variables = [];
+          debouncedFetch();
+        });
+        document.getElementById("modeSelect").addEventListener("change", (e) => {
+          state.mode = e.target.value;
+          debouncedFetch();
+        });
+        document.getElementById("aggregationSelect").addEventListener("change", (e) => {
+          state.aggregation = e.target.value;
+          debouncedFetch();
+        });
+        document.getElementById("startDate").addEventListener("change", (e) => {
+          state.startDate = e.target.value;
+          debouncedFetch();
+        });
+        document.getElementById("endDate").addEventListener("change", (e) => {
+          state.endDate = e.target.value;
+          debouncedFetch();
+        });
+        document.getElementById("forecastDays").addEventListener("change", (e) => {
+          state.days = e.target.value;
+          debouncedFetch();
+        });
+        document.getElementById("analysisRange").addEventListener("change", (e) => {
+          state.analysisRange = e.target.value;
+          debouncedFetch();
+        });
+        document.getElementById("tableSort").addEventListener("change", () => {
+          if (tableRows.length) {
+            renderTable(Object.keys(tableRows[0]).filter((v) => v !== "timestamp"));
+          }
+        });
+        document.getElementById("applyBtn").addEventListener("click", fetchEnvironment);
+        document.getElementById("clearVarsBtn").addEventListener("click", () => {
+          state.variables = [];
+          renderVariableList([]);
+          debouncedFetch();
+        });
+        document.getElementById("recommendedBtn").addEventListener("click", () => {
+          state.variables = [];
+          debouncedFetch();
+        });
+        document.getElementById("refreshBtn").addEventListener("click", fetchEnvironment);
+        document.getElementById("downloadCsvBtn").addEventListener("click", downloadCsv);
+        document.querySelectorAll("[data-range]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const days = parseInt(btn.dataset.range, 10);
+            const end = new Date();
+            const start = new Date();
+            end.setDate(end.getDate() - 1);
+            start.setDate(end.getDate() - days);
+            state.startDate = start.toISOString().slice(0, 10);
+            state.endDate = end.toISOString().slice(0, 10);
+            state.mode = "historical_hourly";
+            updateControls();
+            debouncedFetch();
+          });
+        });
+      }
+
+      setDefaultDates();
+      initMap();
+      initGrid();
+      updateControls();
+      bindControls();
+      fetchEnvironment().finally(() => {
+        const loading = document.getElementById("loadingState");
+        if (loading) {
+          loading.style.display = "none";
+        }
+      });
+    </script>
+  </body>
+</html>

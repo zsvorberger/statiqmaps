@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% include "_analytics.html" %}
+    <title>Help Improve</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            background: #f8fafc;
+            color: #0f172a;
+            font-family: 'Inter', sans-serif;
+        }
+        .page {
+            max-width: 840px;
+            margin: 0 auto;
+            padding: 40px 20px 60px;
+        }
+        .hero {
+            background: #0f172a;
+            color: #fff;
+            border-radius: 24px;
+            padding: 28px 32px;
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+        }
+        .hero h1 {
+            margin: 0 0 8px;
+            font-size: 2rem;
+        }
+        .hero p {
+            margin: 0;
+            color: #e2e8f0;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        .flash {
+            margin: 18px 0 0;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: #dcfce7;
+            color: #166534;
+            font-weight: 600;
+        }
+        .grid {
+            margin-top: 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
+        }
+        .card {
+            background: #fff;
+            border-radius: 18px;
+            padding: 18px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .card label {
+            font-weight: 600;
+            color: #0f172a;
+        }
+        .card textarea {
+            min-height: 120px;
+            resize: vertical;
+            border-radius: 12px;
+            border: 1px solid #cbd5f5;
+            padding: 10px 12px;
+            font-size: 0.9rem;
+            font-family: 'Inter', sans-serif;
+        }
+        .card button {
+            align-self: flex-start;
+            border: none;
+            border-radius: 999px;
+            padding: 8px 16px;
+            background: #2563eb;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .note {
+            margin-top: 18px;
+            color: #475569;
+            font-size: 0.85rem;
+        }
+        .note strong {
+            color: #0f172a;
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <section class="hero">
+        <h1>Help Improve StatIQ Maps</h1>
+        <p>
+            This is an early-stage product. Your feedback helps shape what it becomes.
+            Share anything that feels confusing, missing, helpful, or just an idea you want to pass along.
+        </p>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash">{{ messages[0] }}</div>
+            {% endif %}
+        {% endwith %}
+    </section>
+
+    <section class="grid">
+        <form class="card" method="post">
+            <input type="hidden" name="category" value="What's confusing">
+            <label for="confusing">What's confusing?</label>
+            <textarea id="confusing" name="message" placeholder="Tell me what felt unclear or hard to use."></textarea>
+            <button type="submit">Submit</button>
+        </form>
+
+        <form class="card" method="post">
+            <input type="hidden" name="category" value="What's missing">
+            <label for="missing">What's missing?</label>
+            <textarea id="missing" name="message" placeholder="What do you wish this did that it doesn't yet?"></textarea>
+            <button type="submit">Submit</button>
+        </form>
+
+        <form class="card" method="post">
+            <input type="hidden" name="category" value="What's cool">
+            <label for="cool">What's cool?</label>
+            <textarea id="cool" name="message" placeholder="What should stay exactly the way it is?"></textarea>
+            <button type="submit">Submit</button>
+        </form>
+
+        <form class="card" method="post">
+            <input type="hidden" name="category" value="Other">
+            <label for="other">Anything else?</label>
+            <textarea id="other" name="message" placeholder="Anything else you want to share."></textarea>
+            <button type="submit">Submit</button>
+        </form>
+    </section>
+
+    <p class="note">
+        We read every note. If you want a reply, reach me at <strong>{{ feedback_email }}</strong>.
+    </p>
+</div>
+</body>
+</html>

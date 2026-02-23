@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}Map{% endblock %}
+
+{% block content %}
+<!-- MapLibre CSS -->
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css">
+
+<!-- Your split CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/map.css') }}">
+
+<!-- Minimal fallback so the map shows even if map.css fails -->
+<style>
+  html, body { height:100%; }
+  #map { position: fixed; inset: 0; z-index: 1; }
+</style>
+
+<!-- MAP CANVAS -->
+<div id="map"></div>
+
+<!-- STATUS CHIP -->
+<div id="status">init…</div>
+
+<!-- BLANK TOGGLE -->
+<button id="blankToggle" title="Toggle UI">Blank</button>
+
+<!-- INSPECT TOGGLE -->
+<button id="inspectBtn" title="Toggle Inspect">Inspect</button>
+
+<div id="panelStack">
+<!-- SURFACE TOGGLES -->
+<div id="surfacePanel" class="collapsible">
+  <div class="panel-header">
+    <h4>Surface layers</h4>
+    <button class="panel-toggle" type="button" aria-expanded="true">Hide</button>
+  </div>
+  <div class="panel-body">
+    <div class="row">
+      <span><span class="swatch" style="background:#b87333"></span>PA Unpaved (PMTiles)</span>
+      <input id="chkPAUnpaved" type="checkbox">
+    </div>
+    <div class="row layer-row">
+      <span><span class="swatch c-traffic"></span>Traffic</span>
+      <div class="layer-actions">
+        <label><input id="chkTraffic" type="checkbox">On/Off</label>
+        <label><input id="ghostTraffic" type="checkbox">Ghost</label>
+      </div>
+    </div>
+    <div class="row layer-row">
+      <span><span class="swatch c-speed"></span>Speed</span>
+      <div class="layer-actions">
+        <label><input id="chkSpeed" type="checkbox">On/Off</label>
+        <label><input id="ghostSpeed" type="checkbox">Ghost</label>
+      </div>
+    </div>
+    <div id="surfaceMsg">Surface layers are disabled by default to keep the map light. Toggle any checkbox to load a layer.</div>
+  </div>
+</div>
+
+<!-- USGS TOGGLES -->
+<div id="usgsPanel" class="collapsible">
+  <div class="panel-header">
+    <h4>USGS National Map</h4>
+    <button class="panel-toggle" type="button" aria-expanded="true">Hide</button>
+  </div>
+  <div class="panel-body">
+    <div class="section-title">Basemaps (WMTS)</div>
+    <div class="row">
+      <span>NAIP Imagery</span>
+      <input id="chkUsgsNaip" type="checkbox">
+    </div>
+    <div class="row">
+      <span>USGS Topo</span>
+      <input id="chkUsgsTopo" type="checkbox">
+    </div>
+    <div class="row">
+      <span>Hillshade</span>
+      <input id="chkUsgsHillshade" type="checkbox">
+    </div>
+    <div class="section-title">Overlays (WMS)</div>
+    <div class="row">
+      <span>Hydrography</span>
+      <input id="chkUsgsHydro" type="checkbox">
+    </div>
+    <div class="row">
+      <span>Transportation</span>
+      <input id="chkUsgsTransport" type="checkbox">
+    </div>
+    <div class="row">
+      <span>Boundaries</span>
+      <input id="chkUsgsBoundaries" type="checkbox">
+    </div>
+    <div class="row">
+      <span>Geographic Names</span>
+      <input id="chkUsgsNames" type="checkbox">
+    </div>
+    <div id="usgsMsg">USGS layers stream from nationalmap.gov and are off by default.</div>
+  </div>
+</div>
+
+<!-- CRASHES TOGGLES -->
+<div id="crashPanel" class="collapsible">
+  <div class="panel-header">
+    <h4>Crashes</h4>
+    <button class="panel-toggle" type="button" aria-expanded="true">Hide</button>
+  </div>
+  <div class="panel-body">
+    <div class="row">
+      <button id="crashSelectAll" class="btn-small" type="button">Select all</button>
+    </div>
+    <div class="row">
+      <span><span class="swatch" style="background:#e11d48"></span>Crash locations (2024)</span>
+      <input id="chkCrash2024" type="checkbox" data-layer="crashes" data-year="2024">
+    </div>
+    <div class="row">
+      <span><span class="swatch" style="background:#f97316"></span>Crash locations (2023)</span>
+      <input id="chkCrash2023" type="checkbox" data-layer="crashes" data-year="2023">
+    </div>
+    <div class="row">
+      <span><span class="swatch" style="background:#f59e0b"></span>Crash locations (2022)</span>
+      <input id="chkCrash2022" type="checkbox" data-layer="crashes" data-year="2022">
+    </div>
+    <div class="row">
+      <span><span class="swatch" style="background:#22c55e"></span>Crash locations (2021)</span>
+      <input id="chkCrash2021" type="checkbox" data-layer="crashes" data-year="2021">
+    </div>
+    <div class="row">
+      <span><span class="swatch" style="background:#06b6d4"></span>Crash locations (2020)</span>
+      <input id="chkCrash2020" type="checkbox" data-layer="crashes" data-year="2020">
+    </div>
+    <div id="crashFilters" class="crash-filters">
+      <div class="filter-header">
+        <div class="section-title">Filters</div>
+        <button id="crashFilterToggle" class="panel-toggle" type="button" aria-expanded="true">Hide</button>
+      </div>
+      <div id="crashFilterBody" class="filter-body">
+        <div class="row">
+          <span>Day of week</span>
+          <select id="crashFilterDow">
+            <option value="">Any</option>
+            <option value="1">Sunday</option>
+            <option value="2">Monday</option>
+            <option value="3">Tuesday</option>
+            <option value="4">Wednesday</option>
+            <option value="5">Thursday</option>
+            <option value="6">Friday</option>
+            <option value="7">Saturday</option>
+          </select>
+        </div>
+        <div class="row">
+          <span>Month</span>
+          <select id="crashFilterMonth">
+            <option value="">Any</option>
+            <option value="1">January</option>
+            <option value="2">February</option>
+            <option value="3">March</option>
+            <option value="4">April</option>
+            <option value="5">May</option>
+            <option value="6">June</option>
+            <option value="7">July</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+          </select>
+        </div>
+        <div class="row">
+          <span>Fatal only</span>
+          <input id="crashFilterFatal" type="checkbox">
+        </div>
+        <div class="row">
+          <span>Injury only</span>
+          <input id="crashFilterInjury" type="checkbox">
+        </div>
+        <div class="row">
+          <span>Bicycle involved</span>
+          <input id="crashFilterBicycle" type="checkbox">
+        </div>
+        <div class="row">
+          <span>Pedestrian involved</span>
+          <input id="crashFilterPed" type="checkbox">
+        </div>
+        <div class="row">
+          <button id="crashFilterClear" class="btn-small" type="button">Clear filters</button>
+        </div>
+      </div>
+    </div>
+    <div id="crashMsg">Crash layer is disabled by default — toggle to load.</div>
+  </div>
+</div>
+</div>
+
+<!-- DRAW / SUBMIT PANEL -->
+<div id="drawPanel" class="panel collapsible">
+  <div class="panel-header">
+    <div class="title">Create submission</div>
+    <button class="panel-toggle" type="button" aria-expanded="true">Hide</button>
+  </div>
+  <div class="panel-body">
+    <div id="drawState" class="muted">Click ✎ to start drawing or drop a marker.</div>
+
+    <div class="field">
+      <label>Submission type</label>
+      <select id="submissionType">
+        <option value="new_trail">New trail / connection</option>
+        <option value="surface_update">Surface update</option>
+        <option value="hazard">Hazard / closure</option>
+        <option value="speed_update">Speed limit update</option>
+        <option value="traffic_update">Traffic volume update</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Geometry</label>
+      <select id="geomTypeSelect">
+        <option value="line">Line / route</option>
+        <option value="point">Point / marker</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Surface context</label>
+      <select id="surfaceSelect">
+        <option value="trail">Trail</option>
+        <option value="gravel">Gravel</option>
+        <option value="road">Road (pavement)</option>
+        <option value="double_track">Double track</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <div class="field"><label>Length</label><input id="lenField" value="—" readonly></div>
+
+    <div class="field">
+      <label>Note (optional)</label>
+      <textarea id="drawNote" rows="2" placeholder="Brief context"></textarea>
+    </div>
+
+    <div class="row gap">
+      <button id="submitDrawBtn" class="btn primary" disabled>Submit</button>
+      <button id="clearDrawBtn"  class="btn">Clear</button>
+    </div>
+
+    <div class="muted">Requires zoom ≥ <b id="zoomReqText">10</b> to submit.</div>
+  </div>
+</div>
+
+<!-- DRAW FAB + TOAST -->
+<button id="drawFab" title="Toggle drawing" aria-pressed="false" aria-label="Toggle drawing mode">✎</button>
+<div id="toast"></div>
+
+<!-- SCRIPTS: MapLibre, Turf, pmtiles, then YOUR JS -->
+<script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+<script>
+  window.PMTILES_BASE_URL = "{{ pmtiles_base_url|default('') }}";
+  window.PMTILES_ASSETS = {{ pmtiles_assets|default({})|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/pmtiles.js') }}"></script>
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+{% endblock %}

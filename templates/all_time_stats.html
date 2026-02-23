@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+    {% include "_analytics.html" %}
+  <title>All Time Stats</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #0f172a;
+      background: #f4f6fb;
+    }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #fff, #f4f6fb 55%);
+      min-height: 100vh;
+      color: #0f172a;
+    }
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+    }
+    h1 {
+      margin: 0;
+      font-size: 2.2rem;
+      color: #0f172a;
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 1.4rem;
+      color: #111827;
+    }
+    p.subtitle {
+      margin: 0;
+      color: #475569;
+      font-weight: 500;
+    }
+    .unit-toggle {
+      display: inline-flex;
+      border: 1px solid #cbd5f5;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .unit-toggle button {
+      border: none;
+      padding: 8px 18px;
+      cursor: pointer;
+      font-weight: 600;
+      background: transparent;
+      color: #475569;
+    }
+    .unit-toggle button.active {
+      background: #2563eb;
+      color: #fff;
+    }
+    section {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 18px;
+      padding: 22px 24px;
+      box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .stat-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px 16px;
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stat-title {
+      font-size: 0.85rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #64748b;
+      font-weight: 600;
+    }
+    .stat-value {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .stat-value small {
+      color: #64748b;
+      font-size: 0.8rem;
+      display: block;
+      margin-top: 2px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+    }
+    th {
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #475569;
+      background: #f8fafc;
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+    }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+    .chart-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px;
+      background: #f8fafc;
+    }
+    .chart-card canvas {
+      width: 100% !important;
+      height: 320px !important;
+    }
+    .section-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .progress-row:last-child { margin-bottom: 0; }
+    .progress-label {
+      width: 110px;
+      font-weight: 600;
+      color: #475569;
+    }
+    .progress-bar {
+      flex: 1;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      height: 10px;
+    }
+    .progress-bar span {
+      display: block;
+      height: 10px;
+      background: linear-gradient(90deg, #22d3ee, #6366f1);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      background: #e0f2fe;
+      color: #0369a1;
+      font-weight: 600;
+    }
+    .surface-card{
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      padding:16px;
+      background:#f8fafc;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .surface-card h3{
+      margin:0;
+      font-size:1.2rem;
+      color:#0f172a;
+    }
+    .surface-card p{
+      margin:0;
+      color:#475569;
+      font-size:.93rem;
+    }
+    .surface-card small{
+      color:#64748b;
+    }
+    .surface-metrics{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+      gap:12px;
+    }
+    .surface-metrics .metric{
+      border:1px solid #e2e8f0;
+      border-radius:12px;
+      padding:10px;
+      background:#fff;
+    }
+    .loading-page{
+      min-height:70vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:32px 20px;
+    }
+    .loading-card{
+      max-width:640px;
+      width:100%;
+      border-radius:20px;
+      background:#fff;
+      border:1px solid #e2e8f0;
+      box-shadow:0 25px 45px rgba(15,23,42,0.12);
+      padding:28px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+    .loading-card h1{
+      margin:0;
+      font-size:2rem;
+      color:#0f172a;
+    }
+    .loading-card p{
+      margin:0;
+      color:#475569;
+      line-height:1.5;
+    }
+    .stats-build-alert{
+      border:1px solid #fcd34d;
+      border-radius:16px;
+      padding:18px 22px;
+      background:#fff7df;
+      box-shadow:0 20px 40px rgba(244,196,63,0.2);
+      display:flex;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      gap:16px;
+    }
+    .stats-build-alert strong{
+      display:block;
+      font-size:1rem;
+      color:#92400e;
+      margin-bottom:4px;
+    }
+    .stats-build-alert p{
+      margin:0;
+      color:#7c2d12;
+      max-width:420px;
+      font-size:0.95rem;
+    }
+    .stats-build-alert .alert-actions{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:6px;
+    }
+    .stats-build-alert button{
+      border:none;
+      background:#f97316;
+      color:#fff;
+      border-radius:999px;
+      padding:8px 16px;
+      font-weight:600;
+      font-size:0.9rem;
+      cursor:pointer;
+    }
+    .stats-build-alert button:disabled{
+      opacity:0.7;
+      cursor:progress;
+    }
+    .stats-build-status{
+      font-size:0.8rem;
+      color:#92400e;
+    }
+    @media (max-width: 640px) {
+      section { padding: 18px; }
+      h1 { font-size: 1.8rem; }
+    }
+  </style>
+</head>
+<body>
+  <a href="/how-this-works" style="position:fixed;top:18px;right:18px;padding:6px 12px;border-radius:999px;border:1px solid rgba(148,163,184,0.6);color:#0f172a;text-decoration:none;font-size:0.8rem;background:#fff;">Support</a>
+{% macro unit_span(metric_value, imperial_value, metric_label, imperial_label, digits=2) %}
+  {% if metric_value is not none %}
+    {% set fmt = "%." ~ digits ~ "f" %}
+    <span class="unit-value"
+          data-metric="{{ metric_value }}"
+          data-imperial="{{ imperial_value }}"
+          data-metric-label="{{ metric_label }}"
+          data-imperial-label="{{ imperial_label }}"
+          data-digits="{{ digits }}">{{ fmt|format(metric_value) }} {{ metric_label }}</span>
+  {% else %}
+    <span class="unit-value empty">N/A</span>
+  {% endif %}
+{% endmacro %}
+
+{% if stats_ready %}
+{% set total_distance_km = (stats.total_distance or 0) / 1000 %}
+{% set total_moving_hours = (stats.total_moving_time or 0) / 3600 %}
+{% set climb_density = (stats.total_elevation or 0) / (total_distance_km if total_distance_km else 1) %}
+{% set elev_per_hour = (stats.total_elevation or 0) / (total_moving_hours if total_moving_hours else 1) %}
+{% set weeks_tracked = stats.weeks_tracked|default(0, true) %}
+{% set avg_week_distance = total_distance_km / (weeks_tracked if weeks_tracked else 1) %}
+
+<div class="page">
+  <header>
+    <div>
+      <div style="font-size:0.72rem;color:#64748b;font-style:italic;margin-bottom:6px;">
+        Strava activity data used with athlete permission.
+      </div>
+      <h1>All Time Stats</h1>
+      <p class="subtitle">Lifetime ride insights, milestones, and trends</p>
+    </div>
+    <div class="unit-toggle" role="group">
+      <button type="button" data-system="metric" class="active">Metric</button>
+      <button type="button" data-system="imperial">Imperial</button>
+    </div>
+  </header>
+
+  <section>
+    <div class="section-heading">
+      <h2>Lifetime Summary</h2>
+      <span class="badge">Updated</span>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-title">Total Distance</div>
+        <div class="stat-value">{{ unit_span(total_distance_km, total_distance_km*0.621371, 'km', 'mi', 2) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Total Elevation Gain</div>
+        <div class="stat-value">{{ unit_span(stats.total_elevation, stats.total_elevation*3.28084, 'm', 'ft', 0) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Total Moving Time</div>
+        <div class="stat-value">{{ unit_span(total_moving_hours, total_moving_hours, 'hrs', 'hrs', 1) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Total Elapsed Time</div>
+        <div class="stat-value">{{ unit_span((stats.total_elapsed_time or 0)/3600, (stats.total_elapsed_time or 0)/3600, 'hrs', 'hrs', 1) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Average Speed</div>
+        <div class="stat-value">{{ unit_span(stats.average_speed, stats.average_speed*0.621371, 'km/h', 'mph', 2) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Longest Ride</div>
+        <div class="stat-value">
+          {{ unit_span((stats.longest_ride_distance or 0)/1000, (stats.longest_ride_distance or 0)/1000*0.621371, 'km', 'mi', 2) }}
+          <small>{{ stats.longest_ride_date }}</small>
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Biggest Climb</div>
+        <div class="stat-value">{{ unit_span(stats.biggest_climb, stats.biggest_climb*3.28084, 'm', 'ft', 0) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Highest Avg Elevation</div>
+        <div class="stat-value">{{ unit_span(stats.max_avg_elevation, stats.max_avg_elevation*3.28084, 'm', 'ft', 0) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Hottest Ride</div>
+        <div class="stat-value">
+          {% if stats.hottest_temp is not none %}
+            {{ unit_span(stats.hottest_temp, stats.hottest_temp*1.8 + 32, '°C', '°F', 1) }}
+            <small>{{ stats.hottest_date }}</small>
+          {% else %}
+            N/A
+          {% endif %}
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Average Hours / Week</div>
+        <div class="stat-value">{{ unit_span(stats.average_hours_per_week, stats.average_hours_per_week, 'hrs', 'hrs', 2) }}</div>
+      </div>
+    </div>
+
+    <div class="stat-grid" style="margin-top:16px;">
+      <div class="stat-box">
+        <div class="stat-title">Ride Count</div>
+        <div class="stat-value">{{ stats.ride_count }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Avg Distance / Ride</div>
+        <div class="stat-value">{{ unit_span(stats.avg_distance_per_ride_km, stats.avg_distance_per_ride_km*0.621371, 'km', 'mi', 2) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Avg Elevation / Ride</div>
+        <div class="stat-value">{{ unit_span(stats.avg_elev_per_ride_m, stats.avg_elev_per_ride_m*3.28084, 'm', 'ft', 0) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Avg Time / Ride</div>
+        <div class="stat-value">{{ unit_span(stats.avg_time_per_ride_h, stats.avg_time_per_ride_h, 'hrs', 'hrs', 2) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Rides / Week (avg)</div>
+        <div class="stat-value">{{ "%.2f"|format(stats.rides_per_week_avg) }} <small>± {{ "%.2f"|format(stats.rides_per_week_std) }}</small></div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Eddington (km)</div>
+        <div class="stat-value">{{ stats.eddington_km|default(0) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Eddington (mi)</div>
+        <div class="stat-value">{{ stats.eddington_mi|default(0) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Eddington (climb)</div>
+        <div class="stat-value">{{ unit_span(stats.eddington_climb_m|default(0), stats.eddington_climb_m|default(0)*3.28084, 'm', 'ft', 0) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Ride Type Split</div>
+        <div class="stat-value">
+          Outdoor: {{ stats.ride_type_split.Ride|default(0) }},
+          Virtual: {{ stats.ride_type_split.VirtualRide|default(0) }}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-heading">
+      <h2>Load & Efficiency</h2>
+      <span class="badge">Derived metrics</span>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-title">Climb Density</div>
+        <div class="stat-value">{{ unit_span(climb_density, climb_density*3.28084/0.621371, 'm/km', 'ft/mi', 0) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Elevation / Hour</div>
+        <div class="stat-value">{{ unit_span(elev_per_hour, elev_per_hour*3.28084, 'm/hr', 'ft/hr', 0) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Distance / Week</div>
+        <div class="stat-value">{{ unit_span(avg_week_distance, avg_week_distance*0.621371, 'km', 'mi', 1) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Hours / 100km</div>
+        {% set hours_per_100km = (stats.total_moving_time or 0) / 3600 / (total_distance_km/100 if total_distance_km else 1) %}
+        <div class="stat-value">{{ unit_span(hours_per_100km, hours_per_100km, 'hrs', 'hrs', 2) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Climb / Ride</div>
+        {% set climb_per_ride = climb_density * (stats.avg_distance_per_ride_km or 0) %}
+        <div class="stat-value">{{ unit_span(climb_per_ride, climb_per_ride*3.28084, 'm', 'ft', 0) }}</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-heading">
+      <h2>Ride Type Focus</h2>
+      <span class="badge">Mix</span>
+    </div>
+    {% set type_split = stats.ride_type_split or {} %}
+    {% set total_rides = stats.ride_count or 0 %}
+    <div>
+      {% for type, count in type_split.items() %}
+      {% set pct = (count / total_rides * 100) if total_rides else 0 %}
+      <div class="progress-row">
+        <div class="progress-label">{{ type }}</div>
+        <div class="progress-bar"><span style="width: {{ pct }}%"></span></div>
+        <div>{{ "%.1f"|format(pct) }}%</div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% set surface_mix = stats.surface_mix or {} %}
+  <section>
+    <div class="section-heading">
+      <h2>On-road vs Off-road</h2>
+      <span class="badge">Surface mix</span>
+    </div>
+    <p style="color:#475569;margin-top:0;">{{ surface_mix.summary|default('No rides yet.') }}</p>
+    <div class="two-col">
+      {% for key, label in (('road', 'Road'), ('offroad', 'Off-road')) %}
+        {% set data = surface_mix[key] or {} %}
+        <div class="surface-card">
+          <h3>{{ label }} riding</h3>
+          <p>{{ data.share_pct|default(0) }}% of lifetime distance · {{ data.rides|default(0) }} rides</p>
+          <div class="surface-metrics">
+            <div class="metric">
+              <div class="stat-title">Distance</div>
+              <div class="stat-value">{{ unit_span(data.distance_km|default(0), data.distance_km|default(0)*0.621371, 'km', 'mi', 1) }}</div>
+            </div>
+            <div class="metric">
+              <div class="stat-title">Moving Hours</div>
+              <div class="stat-value">{{ unit_span(data.moving_hours|default(0), data.moving_hours|default(0), 'hrs', 'hrs', 1) }}</div>
+            </div>
+            <div class="metric">
+              <div class="stat-title">Elevation gain</div>
+              <div class="stat-value">{{ unit_span(data.elevation_m|default(0), data.elevation_m|default(0)*3.28084, 'm', 'ft', 0) }}</div>
+            </div>
+            <div class="metric">
+              <div class="stat-title">Avg ride distance</div>
+              <div class="stat-value">{{ unit_span(data.avg_distance_km|default(0), data.avg_distance_km|default(0)*0.621371, 'km', 'mi', 2) }}</div>
+            </div>
+            <div class="metric">
+              <div class="stat-title">Avg ride time</div>
+              <div class="stat-value">{{ unit_span(data.avg_time_h|default(0), data.avg_time_h|default(0), 'hrs', 'hrs', 2) }}</div>
+            </div>
+            <div class="metric">
+              <div class="stat-title">Avg speed</div>
+              <div class="stat-value">{{ unit_span(data.avg_speed_kmh|default(0), data.avg_speed_kmh|default(0)*0.621371, 'km/h', 'mph', 2) }}</div>
+            </div>
+          </div>
+          {% if data.best_ride %}
+            <small>Longest {{ label|lower }} session: {{ unit_span(data.best_ride.distance_km|default(0), data.best_ride.distance_km|default(0)*0.621371, 'km', 'mi', 1) }} on {{ data.best_ride.date or '—' }}</small>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section>
+    <h2>Records</h2>
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-title">Longest Moving Time</div>
+        <div class="stat-value">
+          {% if stats.longest_time_ride %}
+            {{ unit_span((stats.longest_time_ride.moving_time or 0)/3600, (stats.longest_time_ride.moving_time or 0)/3600, 'hrs', 'hrs', 1) }}
+            <small>{% if stats.longest_time_ride.date %}{{ stats.longest_time_ride.date.strftime("%Y-%m-%d") }}{% endif %}</small>
+          {% else %}N/A{% endif %}
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Fastest Avg Speed (ride)</div>
+        <div class="stat-value">
+          {% if stats.fastest_avg_speed_ride %}
+            {{ unit_span((stats.fastest_avg_speed_ride.v_mps or 0)*3.6, (stats.fastest_avg_speed_ride.v_mps or 0)*2.23694, 'km/h', 'mph', 2) }}
+            <small>{% if stats.fastest_avg_speed_ride.date %}{{ stats.fastest_avg_speed_ride.date.strftime("%Y-%m-%d") }}{% endif %}</small>
+          {% else %}N/A{% endif %}
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Coldest Ride</div>
+        <div class="stat-value">
+          {% if stats.coldest_ride %}
+            {{ unit_span(stats.coldest_ride.temp, stats.coldest_ride.temp*1.8 + 32, '°C', '°F', 1) }}
+            <small>{% if stats.coldest_ride.date %}{{ stats.coldest_ride.date.strftime("%Y-%m-%d") }}{% endif %}</small>
+          {% else %}N/A{% endif %}
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Highest Elevation Reached</div>
+        <div class="stat-value">
+          {% if stats.highest_elev_point %}
+            {{ unit_span(stats.highest_elev_point.elev_high|int, stats.highest_elev_point.elev_high|int * 3.28084, 'm', 'ft', 0) }}
+            <small>{% if stats.highest_elev_point.date %}{{ stats.highest_elev_point.date.strftime("%Y-%m-%d") }}{% endif %}</small>
+          {% else %}N/A{% endif %}
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Highest Average Elevation Ride</div>
+        <div class="stat-value">
+          {% if stats.highest_avg_elev %}
+            {{ unit_span(stats.highest_avg_elev.avg_elev|int, stats.highest_avg_elev.avg_elev|int * 3.28084, 'm', 'ft', 0) }}
+            <small>{% if stats.highest_avg_elev.date %}{{ stats.highest_avg_elev.date.strftime("%Y-%m-%d") }}{% endif %}</small>
+          {% else %}N/A{% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Consistency & Patterns</h2>
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-title">Longest Streak</div>
+        <div class="stat-value">
+          {{ stats.longest_streak_days|default(0) }} days
+          <small>{% if stats.streak_start %}{{ stats.streak_start.strftime("%Y-%m-%d") }}{% endif %} — {% if stats.streak_end %}{{ stats.streak_end.strftime("%Y-%m-%d") }}{% endif %}</small>
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Current Streak</div>
+        <div class="stat-value">{{ stats.current_streak_days|default(0) }} days</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Longest Break</div>
+        <div class="stat-value">
+          {{ stats.longest_break_days|default(0) }} days
+          <small>{% if stats.break_start %}{{ stats.break_start.strftime("%Y-%m-%d") }}{% endif %} → {% if stats.break_end %}{{ stats.break_end.strftime("%Y-%m-%d") }}{% endif %}</small>
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Earliest Start</div>
+        <div class="stat-value">{% if stats.earliest_start_local %}{{ stats.earliest_start_local.strftime("%H:%M") }}{% else %}N/A{% endif %}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Latest Start</div>
+        <div class="stat-value">{% if stats.latest_start_local %}{{ stats.latest_start_local.strftime("%H:%M") }}{% else %}N/A{% endif %}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Night Rides (20:00–04:59)</div>
+        <div class="stat-value">{{ stats.night_ride_count|default(0) }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-title">Dawn Rides (05:00–06:59)</div>
+        <div class="stat-value">{{ stats.dawn_ride_count|default(0) }}</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Best Weeks & Months</h2>
+    <div class="two-col">
+      <table>
+        <tr><th colspan="4">Best Weeks</th></tr>
+        <tr><th>Metric</th><th>Year‑Week</th><th>Value</th><th>Rides</th></tr>
+        <tr>
+          <td>Distance</td>
+          <td>{% if stats.best_week_distance %}{{ stats.best_week_distance.key[0] }}‑W{{ stats.best_week_distance.key[1] }}{% endif %}</td>
+          <td>{% if stats.best_week_distance %}{{ unit_span(stats.best_week_distance.distance_m/1000, stats.best_week_distance.distance_m/1000*0.621371, 'km', 'mi', 1) }}{% endif %}</td>
+          <td>{% if stats.best_week_distance %}{{ stats.best_week_distance.rides }}{% endif %}</td>
+        </tr>
+        <tr>
+          <td>Elevation</td>
+          <td>{% if stats.best_week_elevation %}{{ stats.best_week_elevation.key[0] }}‑W{{ stats.best_week_elevation.key[1] }}{% endif %}</td>
+          <td>{% if stats.best_week_elevation %}{{ unit_span(stats.best_week_elevation.elev_m, stats.best_week_elevation.elev_m*3.28084, 'm', 'ft', 0) }}{% endif %}</td>
+          <td>{% if stats.best_week_elevation %}{{ stats.best_week_elevation.rides }}{% endif %}</td>
+        </tr>
+        <tr>
+          <td>Moving Time</td>
+          <td>{% if stats.best_week_time %}{{ stats.best_week_time.key[0] }}‑W{{ stats.best_week_time.key[1] }}{% endif %}</td>
+          <td>{% if stats.best_week_time %}{{ unit_span(stats.best_week_time.mov_s/3600, stats.best_week_time.mov_s/3600, 'hrs', 'hrs', 1) }}{% endif %}</td>
+          <td>{% if stats.best_week_time %}{{ stats.best_week_time.rides }}{% endif %}</td>
+        </tr>
+      </table>
+
+      <table>
+        <tr><th colspan="4">Best Months</th></tr>
+        <tr><th>Metric</th><th>Year‑Month</th><th>Value</th><th>Rides</th></tr>
+        <tr>
+          <td>Distance</td>
+          <td>{% if stats.best_month_distance %}{{ stats.best_month_distance.key[0] }}‑{{ "%02d"|format(stats.best_month_distance.key[1]) }}{% endif %}</td>
+          <td>{% if stats.best_month_distance %}{{ unit_span(stats.best_month_distance.distance_m/1000, stats.best_month_distance.distance_m/1000*0.621371, 'km', 'mi', 1) }}{% endif %}</td>
+          <td>{% if stats.best_month_distance %}{{ stats.best_month_distance.rides }}{% endif %}</td>
+        </tr>
+        <tr>
+          <td>Elevation</td>
+          <td>{% if stats.best_month_elevation %}{{ stats.best_month_elevation.key[0] }}‑{{ "%02d"|format(stats.best_month_elevation.key[1]) }}{% endif %}</td>
+          <td>{% if stats.best_month_elevation %}{{ unit_span(stats.best_month_elevation.elev_m, stats.best_month_elevation.elev_m*3.28084, 'm', 'ft', 0) }}{% endif %}</td>
+          <td>{% if stats.best_month_elevation %}{{ stats.best_month_elevation.rides }}{% endif %}</td>
+        </tr>
+        <tr>
+          <td>Moving Time</td>
+          <td>{% if stats.best_month_time %}{{ stats.best_month_time.key[0] }}‑{{ "%02d"|format(stats.best_month_time.key[1]) }}{% endif %}</td>
+          <td>{% if stats.best_month_time %}{{ unit_span(stats.best_month_time.mov_s/3600, stats.best_month_time.mov_s/3600, 'hrs', 'hrs', 1) }}{% endif %}</td>
+          <td>{% if stats.best_month_time %}{{ stats.best_month_time.rides }}{% endif %}</td>
+        </tr>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Rolling Best Totals</h2>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-title">7‑day Distance</div><div class="stat-value">{{ unit_span(stats.rolling_7d_km, stats.rolling_7d_km*0.621371, 'km', 'mi', 1) }}</div></div>
+      <div class="stat-box"><div class="stat-title">28‑day Distance</div><div class="stat-value">{{ unit_span(stats.rolling_28d_km, stats.rolling_28d_km*0.621371, 'km', 'mi', 1) }}</div></div>
+      <div class="stat-box"><div class="stat-title">365‑day Distance</div><div class="stat-value">{{ unit_span(stats.rolling_365d_km, stats.rolling_365d_km*0.621371, 'km', 'mi', 1) }}</div></div>
+      <div class="stat-box"><div class="stat-title">7‑day Elevation</div><div class="stat-value">{{ unit_span(stats.rolling_7d_elev_m, stats.rolling_7d_elev_m*3.28084, 'm', 'ft', 0) }}</div></div>
+      <div class="stat-box"><div class="stat-title">28‑day Elevation</div><div class="stat-value">{{ unit_span(stats.rolling_28d_elev_m, stats.rolling_28d_elev_m*3.28084, 'm', 'ft', 0) }}</div></div>
+      <div class="stat-box"><div class="stat-title">365‑day Elevation</div><div class="stat-value">{{ unit_span(stats.rolling_365d_elev_m, stats.rolling_365d_elev_m*3.28084, 'm', 'ft', 0) }}</div></div>
+      <div class="stat-box"><div class="stat-title">7‑day Moving Time</div><div class="stat-value">{{ unit_span(stats.rolling_7d_hours, stats.rolling_7d_hours, 'hrs', 'hrs', 1) }}</div></div>
+      <div class="stat-box"><div class="stat-title">28‑day Moving Time</div><div class="stat-value">{{ unit_span(stats.rolling_28d_hours, stats.rolling_28d_hours, 'hrs', 'hrs', 1) }}</div></div>
+      <div class="stat-box"><div class="stat-title">365‑day Moving Time</div><div class="stat-value">{{ unit_span(stats.rolling_365d_hours, stats.rolling_365d_hours, 'hrs', 'hrs', 1) }}</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Year‑to‑Date vs Last Year‑to‑Date</h2>
+    <table>
+      <tr><th></th><th>Distance</th><th>Elevation</th><th>Moving Time</th><th>Rides</th></tr>
+      <tr>
+        <td>YTD</td>
+        <td>{{ unit_span(stats.ytd_distance_km, stats.ytd_distance_km*0.621371, 'km', 'mi', 1) }}</td>
+        <td>{{ unit_span(stats.ytd_elevation_m, stats.ytd_elevation_m*3.28084, 'm', 'ft', 0) }}</td>
+        <td>{{ unit_span(stats.ytd_moving_h, stats.ytd_moving_h, 'hrs', 'hrs', 1) }}</td>
+        <td>{{ stats.ytd_rides }}</td>
+      </tr>
+      <tr>
+        <td>LYTD</td>
+        <td>{{ unit_span(stats.lytd_distance_km, stats.lytd_distance_km*0.621371, 'km', 'mi', 1) }}</td>
+        <td>{{ unit_span(stats.lytd_elevation_m, stats.lytd_elevation_m*3.28084, 'm', 'ft', 0) }}</td>
+        <td>{{ unit_span(stats.lytd_moving_h, stats.lytd_moving_h, 'hrs', 'hrs', 1) }}</td>
+        <td>{{ stats.lytd_rides }}</td>
+      </tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Distributions</h2>
+    <div class="two-col" style="margin-bottom:18px;">
+      <table>
+        <tr><th colspan="2">Rides by Weekday</th></tr>
+        <tr><th>Day</th><th>Rides</th></tr>
+        {% for day, n in stats.weekday_hist.items()|sort %}
+        <tr><td>{{ day }}</td><td>{{ n }}</td></tr>
+        {% endfor %}
+      </table>
+
+      <table>
+        <tr><th colspan="2">Rides by Start Hour</th></tr>
+        <tr><th>Hour</th><th>Rides</th></tr>
+        {% for hr, n in stats.hour_hist.items()|sort %}
+        <tr><td>{{ hr }}</td><td>{{ n }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="stat-title">Weekday Heat</div>
+        <canvas id="weekdayChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="stat-title">Start Hour Profile</div>
+        <canvas id="hourChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="stat-title">Yearly Distance vs Elevation</div>
+        <canvas id="yearlyDistanceChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Yearly Breakdown</h2>
+    <table>
+      <tr>
+        <th>Year</th>
+        <th>Total Distance</th>
+        <th>Total Elevation</th>
+        <th>Moving Time</th>
+        <th>Elapsed Time</th>
+        <th>Ride Count</th>
+      </tr>
+      {% for year, y in yearly_breakdown.items()|sort(reverse=True) %}
+      {% set year_km = (y['total_distance'] or 0)/1000 %}
+      <tr>
+        <td>{{ year }}</td>
+        <td>{{ unit_span(year_km, year_km*0.621371, 'km', 'mi', 2) }}</td>
+        <td>{{ unit_span(y['total_elevation'], y['total_elevation']*3.28084, 'm', 'ft', 0) }}</td>
+        <td>{{ unit_span((y['total_moving_time'] or 0)/3600, (y['total_moving_time'] or 0)/3600, 'hrs', 'hrs', 1) }}</td>
+        <td>{{ unit_span((y['total_elapsed_time'] or 0)/3600, (y['total_elapsed_time'] or 0)/3600, 'hrs', 'hrs', 1) }}</td>
+        <td>{{ y['ride_count'] }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </section>
+</div>
+
+<script>
+(function(){
+  const unitButtons = document.querySelectorAll('.unit-toggle button');
+  let currentSystem = 'metric';
+
+  function formatNumber(value, digits){
+    return Number(value || 0).toLocaleString(undefined, {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits
+    });
+  }
+
+  function setSystem(system){
+    currentSystem = system;
+    unitButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.system === system));
+    document.querySelectorAll('.unit-value').forEach(el => {
+      const metricValue = parseFloat(el.dataset.metric);
+      const imperialValue = parseFloat(el.dataset.imperial);
+      const digits = parseInt(el.dataset.digits || '0', 10);
+      const metricLabel = el.dataset.metricLabel || '';
+      const imperialLabel = el.dataset.imperialLabel || '';
+      const value = system === 'imperial' ? imperialValue : metricValue;
+      const label = system === 'imperial' ? imperialLabel : metricLabel;
+      if(!isNaN(value)){
+        el.textContent = `${formatNumber(value, digits)}${label ? ' ' + label : ''}`;
+      }
+    });
+  }
+
+  unitButtons.forEach(btn => {
+    btn.addEventListener('click', () => setSystem(btn.dataset.system));
+  });
+
+  function buildCharts(){
+    const yearlyData = {{ yearly_breakdown|tojson }};
+    const weekdayData = {{ stats.weekday_hist|default({}, true)|tojson }};
+    const hourData = {{ stats.hour_hist|default({}, true)|tojson }};
+
+    const yearlyEntries = Object.entries(yearlyData).map(([year, data]) => ({ year, data })).sort((a, b) => a.year.localeCompare(b.year));
+    const yLabels = yearlyEntries.map(entry => entry.year);
+    const yDist = yearlyEntries.map(entry => (entry.data.total_distance || 0) / 1000);
+    const yElev = yearlyEntries.map(entry => entry.data.total_elevation || 0);
+
+    if(document.getElementById('yearlyDistanceChart')){
+      new Chart(document.getElementById('yearlyDistanceChart').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: yLabels,
+          datasets: [
+            { label: 'Distance (km)', data: yDist, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.15)', tension: 0.35, yAxisID: 'y' },
+            { label: 'Elevation (m)', data: yElev, borderColor: '#14b8a6', backgroundColor: 'rgba(20,184,166,0.15)', tension: 0.35, yAxisID: 'y1' }
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            y: { type: 'linear', position: 'left', beginAtZero: true },
+            y1: { type: 'linear', position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } }
+          }
+        }
+      });
+    }
+
+    const weekdayOrder = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const weekdayValues = weekdayOrder.map(day => weekdayData[day] || 0);
+    if(document.getElementById('weekdayChart')){
+      new Chart(document.getElementById('weekdayChart').getContext('2d'), {
+        type: 'bar',
+        data: { labels: weekdayOrder, datasets: [{ label: 'Rides', data: weekdayValues, backgroundColor: '#6366f1' }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    const hourLabels = Array.from({length: 24}, (_, i) => i);
+    const hourValues = hourLabels.map(hr => hourData[hr] || hourData[String(hr)] || 0);
+    if(document.getElementById('hourChart')){
+      new Chart(document.getElementById('hourChart').getContext('2d'), {
+        type: 'line',
+        data: { labels: hourLabels, datasets: [{ label: 'Rides', data: hourValues, borderColor: '#f97316', tension: 0.35, fill: true, backgroundColor: 'rgba(249,115,22,0.2)' }] },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+      });
+    }
+  }
+
+  setSystem('metric');
+  buildCharts();
+})();
+</script>
+{% else %}
+  <div class="page">
+    <section class="stats-build-alert">
+      <div>
+        <strong>Stats bundle not found</strong>
+        <p>We cache your lifetime stats so this dashboard loads quickly. Queue a rebuild and come back once the job completes.</p>
+      </div>
+      <div class="alert-actions">
+        <button id="statsRefreshBtn" type="button">Build stats</button>
+        <div id="statsRefreshStatus" class="stats-build-status">Status unavailable</div>
+        <div id="statsRefreshHint" class="stats-build-status">This can take a minute—keep the page open while it runs.</div>
+      </div>
+    </section>
+  </div>
+  <script>
+  (function(){
+    const btn = document.getElementById('statsRefreshBtn');
+    const statusEl = document.getElementById('statsRefreshStatus');
+    const hintEl = document.getElementById('statsRefreshHint');
+    if(!btn) return;
+    async function updateStatus(){
+      try{
+        const res = await fetch('/api/refresh_stats/status', {credentials: 'same-origin'});
+        if(!res.ok) throw new Error();
+        const job = await res.json();
+        const state = job.status || 'idle';
+        statusEl.textContent = job.message || state;
+        if(state === 'running'){
+          btn.disabled = true;
+          btn.textContent = 'Building stats…';
+          hintEl.textContent = 'This may take a couple minutes.';
+        }else if(state === 'queued'){
+          btn.disabled = true;
+          btn.textContent = 'Queued…';
+          hintEl.textContent = 'Job queued.';
+        }else if(state === 'completed'){
+          btn.disabled = true;
+          btn.textContent = 'Stats ready';
+          hintEl.textContent = 'Reload to view the dashboard.';
+        }else if(state === 'error'){
+          btn.disabled = false;
+          btn.textContent = 'Retry build';
+          hintEl.textContent = 'An error occurred.';
+        }else{
+          btn.disabled = false;
+          btn.textContent = 'Build stats';
+          hintEl.textContent = 'Queue the build to warm the cache.';
+        }
+      }catch(err){
+        statusEl.textContent = 'Unable to check status right now.';
+        btn.disabled = false;
+      }
+    }
+    btn.addEventListener('click', async ()=>{
+      btn.disabled = true;
+      btn.textContent = 'Queueing…';
+      hintEl.textContent = 'Starting the job…';
+      try{
+        const res = await fetch('/api/refresh_stats',{method:'POST', credentials:'same-origin'});
+        if(!res.ok) throw new Error();
+        const payload = await res.json();
+        statusEl.textContent = payload.message || payload.error || 'Stats build triggered.';
+      }catch(err){
+        statusEl.textContent = 'Unable to queue the build.';
+        hintEl.textContent = '';
+        btn.disabled = false;
+        btn.textContent = 'Build stats';
+      }
+      updateStatus();
+    });
+    updateStatus();
+    const intervalId = setInterval(updateStatus, 5000);
+    window.addEventListener('beforeunload', ()=>clearInterval(intervalId));
+  })();
+  </script>
+{% endif %}
+</body>
+</html>

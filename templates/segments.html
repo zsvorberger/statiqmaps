@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+    {% include "_analytics.html" %}
+  <title>Your Segments</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 16px; }
+    h1 { margin: 0 0 12px; }
+    .actions { margin-bottom: 16px; }
+    .actions a[aria-disabled="true"] { pointer-events: none; opacity: 0.6; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #e5e5e5; text-align: left; }
+    .tag { padding: 3px 8px; border-radius: 999px; background: #eee; font-size: 12px; }
+    .muted { color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Segments</h1>
+  <div class="actions">
+    <a href="/segments/refresh" id="refreshSegmentsLink">Refresh Segments</a>
+  </div>
+
+  {% if not segments %}
+    <p class="muted">No segment data found. Click “Refresh Segments” or run <code>python segments_fetch.py</code>.</p>
+  {% else %}
+    <table>
+      <thead>
+        <tr>
+          <th>Segment</th>
+          <th>Attempts</th>
+          <th>PR</th>
+          <th>PR Date</th>
+          <th>Last</th>
+          <th>Biggest Improvement</th>
+          <th>Distance</th>
+          <th>Avg Grade</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in segments %}
+        {% set seg = row.segment %}
+        {% set sm = row.summary %}
+        <tr>
+          <td><a href="/segments/{{ seg.metadata.id }}">{{ seg.metadata.name }}</a></td>
+          <td>{{ sm.attempts if sm else 0 }}</td>
+          <td>{% if sm %}{{ sm.pr_time | mmss }}{% else %}-{% endif %}</td>
+          <td>{% if sm and sm.pr_date %}{{ sm.pr_date.date() }}{% else %}-{% endif %}</td>
+          <td>{% if sm %}{{ sm.last_time | mmss }}{% else %}-{% endif %}</td>
+          <td>
+            {% if sm and sm.biggest_improvement.delta > 0 %}
+              <span class="tag">-{{ sm.biggest_improvement.delta | mmss }}</span>
+            {% else %}-{% endif %}
+          </td>
+          <td>{{ (seg.metadata.distance/1000) | round(2) }} km</td>
+          <td>{{ seg.metadata.avg_grade }}%</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+  <script>
+    const refreshLink = document.getElementById('refreshSegmentsLink');
+    if (refreshLink) {
+      refreshLink.addEventListener('click', () => {
+        refreshLink.setAttribute('aria-disabled', 'true');
+        refreshLink.textContent = 'Refreshing…';
+      }, { once: true });
+    }
+  </script>
+</body>
+</html>

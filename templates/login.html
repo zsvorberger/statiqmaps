@@ -1,0 +1,356 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+    {% include "_analytics.html" %}
+  <title>Login</title>
+  <style>
+    :root {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: #0f172a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #e6eef8;
+    }
+    .auth-shell {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: row;
+    }
+    .brand-panel {
+      flex: 1.2;
+      background: linear-gradient(135deg, #1551d0, #1e88e5);
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px;
+    }
+    .brand-content {
+      max-width: 460px;
+      width: 100%;
+    }
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      margin-bottom: 20px;
+      opacity: 0.9;
+    }
+    .brand-title {
+      font-size: 2.2rem;
+      line-height: 1.2;
+      margin: 0 0 12px;
+      font-weight: 700;
+    }
+    .brand-subtitle {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: rgba(248, 250, 252, 0.9);
+    }
+    .form-panel {
+      flex: 1;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+    }
+    .form-card {
+      width: min(420px, 92vw);
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 28px 28px 24px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+      border: 1px solid #e2e8f0;
+    }
+    .form-title {
+      margin: 0 0 6px;
+      font-size: 1.6rem;
+      color: #0f172a;
+    }
+    .form-subtitle {
+      margin: 0 0 18px;
+      color: #64748b;
+      font-size: 0.95rem;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: #334155;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .field {
+      margin-bottom: 14px;
+    }
+    input {
+      width: 100%;
+      border: 1px solid #cbd5f5;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      height: 46px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #1e88e5;
+      box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.18);
+    }
+    .password-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .toggle-btn {
+      border: 1px solid #cbd5f5;
+      background: #f1f5f9;
+      color: #0f172a;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-weight: 600;
+      cursor: pointer;
+      height: 46px;
+      white-space: nowrap;
+    }
+    .primary-btn {
+      width: 100%;
+      border: none;
+      background: #1e88e5;
+      color: #fff;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      height: 46px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .primary-btn:hover {
+      box-shadow: 0 12px 24px rgba(30, 136, 229, 0.28);
+      transform: translateY(-1px);
+    }
+    .secondary-links {
+      margin-top: 14px;
+      font-size: 0.9rem;
+      color: #475569;
+      text-align: center;
+    }
+    .secondary-links a,
+    .secondary-links button {
+      color: #1e88e5;
+      text-decoration: none;
+      font-weight: 600;
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+    }
+    .error {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      font-size: 0.9rem;
+    }
+    .notice {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      font-size: 0.9rem;
+      display: none;
+    }
+    .form-view { display: none; }
+    .form-view.active { display: block; }
+
+    @media (max-width: 900px) {
+      .auth-shell {
+        flex-direction: column;
+      }
+      .brand-panel,
+      .form-panel {
+        flex: none;
+        width: 100%;
+      }
+      .brand-panel {
+        padding: 42px 28px;
+      }
+      .form-panel {
+        padding: 32px 20px 48px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-shell">
+    <section class="brand-panel">
+      <div class="brand-content">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3.4"></circle>
+          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.86l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.86-.34 1.7 1.7 0 0 0-1 1.54V22a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.54 1.7 1.7 0 0 0-1.86.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.86 1.7 1.7 0 0 0-1.54-1H2a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.54-1 1.7 1.7 0 0 0-.34-1.86l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.86.34h.06A1.7 1.7 0 0 0 9 3.1V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.54h.06a1.7 1.7 0 0 0 1.86-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.86v.06A1.7 1.7 0 0 0 20.9 11H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path>
+        </svg>
+        <h1 class="brand-title">Hello! Welcome to StatIQ Maps!</h1>
+        <p class="brand-subtitle">Get insights into your cycling data and a map to enhance your safety and experience.</p>
+      </div>
+    </section>
+    <section class="form-panel">
+      <div class="form-card">
+        <div id="loginView" class="form-view active">
+          <h2 class="form-title">Log In</h2>
+          <p class="form-subtitle">Access your dashboard and activity insights.</p>
+
+          <div class="notice" id="loginNotice"></div>
+
+          {% if error %}
+            <div class="error">{{ error }}</div>
+          {% endif %}
+
+          <form method="post" id="loginForm">
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" autocomplete="email" required>
+            </div>
+            <div class="field">
+              <label for="password">Password</label>
+              <div class="password-row">
+                <input id="password" name="password" type="password" autocomplete="current-password" required>
+                <button class="toggle-btn" type="button" id="togglePassword">Show</button>
+              </div>
+            </div>
+            <button type="submit" class="primary-btn">Log In</button>
+          </form>
+
+          <div class="secondary-links">
+            <span>No account? </span><button type="button" id="showRegister">Create an account</button>
+          </div>
+        </div>
+
+        <div id="registerView" class="form-view">
+          <h2 class="form-title">Create Account</h2>
+          <p class="form-subtitle">Set up your StatIQ Maps profile in a minute.</p>
+          <div class="error" id="registerError" style="display:none;"></div>
+
+          <form method="post" action="/register" id="registerForm">
+            <div class="field">
+              <label for="registerEmail">Email</label>
+              <input id="registerEmail" name="email" type="email" autocomplete="email" required>
+            </div>
+            <div class="field">
+              <label for="registerPassword">Password</label>
+              <input id="registerPassword" name="password" type="password" autocomplete="new-password" required>
+            </div>
+            <div class="field">
+              <label for="registerConfirm">Confirm Password</label>
+              <input id="registerConfirm" name="confirm_password" type="password" autocomplete="new-password" required>
+            </div>
+            <button type="submit" class="primary-btn">Create Account</button>
+          </form>
+
+          <div class="secondary-links">
+            <span>Already have an account? </span><button type="button" id="showLogin">Back to login</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const toggle = document.getElementById('togglePassword');
+    const pwd = document.getElementById('password');
+    if (toggle && pwd) {
+      toggle.addEventListener('click', () => {
+        const isHidden = pwd.type === 'password';
+        pwd.type = isHidden ? 'text' : 'password';
+        toggle.textContent = isHidden ? 'Hide' : 'Show';
+      });
+    }
+
+    const loginView = document.getElementById('loginView');
+    const registerView = document.getElementById('registerView');
+    const showRegister = document.getElementById('showRegister');
+    const showLogin = document.getElementById('showLogin');
+    const registerForm = document.getElementById('registerForm');
+    const registerError = document.getElementById('registerError');
+    const loginNotice = document.getElementById('loginNotice');
+
+    function setView(view) {
+      if (view === 'register') {
+        loginView.classList.remove('active');
+        registerView.classList.add('active');
+      } else {
+        registerView.classList.remove('active');
+        loginView.classList.add('active');
+      }
+    }
+
+    if (showRegister) {
+      showRegister.addEventListener('click', () => {
+        setView('register');
+      });
+    }
+
+    if (showLogin) {
+      showLogin.addEventListener('click', () => {
+        setView('login');
+      });
+    }
+
+    if (registerForm) {
+      registerForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (registerError) {
+          registerError.style.display = 'none';
+          registerError.textContent = '';
+        }
+        if (loginNotice) {
+          loginNotice.style.display = 'none';
+          loginNotice.textContent = '';
+        }
+        const password = document.getElementById('registerPassword').value;
+        const confirm = document.getElementById('registerConfirm').value;
+        if (password !== confirm) {
+          registerError.textContent = 'Passwords do not match.';
+          registerError.style.display = 'block';
+          return;
+        }
+        try {
+          const res = await fetch('/register', {
+            method: 'POST',
+            body: new FormData(registerForm),
+            credentials: 'same-origin'
+          });
+          if (res.redirected || res.url.includes('/login')) {
+            setView('login');
+            loginNotice.textContent = 'Account created. Please log in.';
+            loginNotice.style.display = 'block';
+            registerForm.reset();
+            return;
+          }
+          if (!res.ok) {
+            throw new Error('Registration failed');
+          }
+          const text = await res.text();
+          if (text.includes('error') || text.toLowerCase().includes('invalid')) {
+            throw new Error('Registration failed');
+          }
+          setView('login');
+          loginNotice.textContent = 'Account created. Please log in.';
+          loginNotice.style.display = 'block';
+          registerForm.reset();
+        } catch (err) {
+          registerError.textContent = 'Unable to create account. Please check your details.';
+          registerError.style.display = 'block';
+        }
+      });
+    }
+  </script>
+</body>
+</html>

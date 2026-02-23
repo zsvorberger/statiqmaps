@@ -1,0 +1,39 @@
+<!-- bike_split.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% include "_analytics.html" %}
+    <title>Bike Split View</title>
+    <style>
+        .split-container {
+            display: flex;
+            height: 92vh;
+            width: 100%;
+            overflow: hidden;
+        }
+        .split-left, .split-right {
+            width: 50%;
+            border: none;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="bike-nav-wrapper">
+        {% include 'bike_nav.html' %}
+    </div>
+
+    <div class="split-container">
+        <iframe
+            class="split-left"
+            src="/{{ left }}?bike_id={{ bike_id }}&start_date={{ start_date }}&end_date={{ end_date }}">
+        </iframe>
+
+        <iframe
+            class="split-right"
+            src="/{{ right }}?bike_id={{ bike_id }}&start_date={{ start_date }}&end_date={{ end_date }}">
+        </iframe>
+    </div>
+</body>
+</html>

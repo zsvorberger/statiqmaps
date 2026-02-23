@@ -1,0 +1,178 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+    {% include "_analytics.html" %}
+  <title>Coverage Stats</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px;color:#111827}
+    .cards{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+    .card{padding:14px 16px;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);min-width:180px}
+    .card .num{font-size:28px;font-weight:700}
+    table{border-collapse:collapse;width:100%;margin-top:10px}
+    th,td{padding:8px 10px;border-bottom:1px solid #eee;text-align:left}
+    th{background:#fafafa}
+    .muted{color:#6b7280;font-size:12px}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:8px 0}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#f3f4f6;font-size:12px}
+    a.button{display:inline-block;padding:6px 10px;border:1px solid #ddd;border-radius:8px;text-decoration:none;color:#111}
+    a.button:hover{background:#f9fafb}
+    details{border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin:18px 0}
+    details>summary{font-weight:600;cursor:pointer}
+    .pair{display:flex;gap:12px;flex-wrap:wrap}
+    .kv{padding:10px 12px;border:1px solid #eee;border-radius:10px;background:#fafafa}
+  </style>
+</head>
+<body>
+  <div class="row">
+    <div style="font-size:0.72rem;color:#6b7280;font-style:italic;">
+      Strava activity data used with athlete permission.
+    </div>
+  </div>
+  <div class="row">
+    <h2 style="margin:0">Wandrer-lite: Coverage Stats</h2>
+    <span class="pill" id="dateRange">—</span>
+    <a class="button" href="/heatmaps">Open Rides Map</a>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div>Unique miles (est)</div><div class="num" id="unique">—</div></div>
+    <div class="card"><div>Total miles</div><div class="num" id="total">—</div></div>
+    <div class="card"><div>Exploration %</div><div class="num" id="explore">—</div></div>
+    <div class="card"><div>Repeatability</div><div class="num" id="repeat">—</div><div class="muted" id="capNote"></div></div>
+  </div>
+
+  <h3>New miles by ride</h3>
+  <table id="ridesTable">
+    <thead>
+      <tr>
+        <th>Ride</th><th>Date</th><th>New miles</th><th>% new</th><th>Total miles</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <details open>
+    <summary>Monthly breakdown</summary>
+    <table id="monthTable">
+      <thead>
+        <tr><th>Year</th><th>Month</th><th>Total miles</th><th>New miles</th><th>Exploration %</th><th>Repeatability</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>Bests</summary>
+    <div class="pair" id="bests"></div>
+  </details>
+
+  <details>
+    <summary>Streaks & zero-new stats</summary>
+    <div class="pair" id="streaks"></div>
+  </details>
+
+  <details>
+    <summary>Leaderboards</summary>
+    <table id="bestRides">
+      <thead><tr><th>Ride</th><th>Date</th><th>New miles</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </details>
+
+  <script>
+  function fmt(n, d=1){ return Number(n||0).toFixed(d); }
+  function pct(n){ return fmt(n,1)+'%'; }
+  function linkToActivity(id, label){ return `<a href="/activity/${id}/new" target="_blank">${label}</a>`; }
+
+  async function loadStats() {
+    const s = await fetch('/stats/coverage_summary').then(r => r.json());
+
+    // Header cards
+    document.getElementById('unique').textContent = fmt(s.unique_miles_est,1);
+    document.getElementById('total').textContent  = fmt(s.total_miles,1);
+    document.getElementById('explore').textContent= pct(s.exploration_pct);
+    document.getElementById('repeat').textContent = fmt(s.repeatability_score,1);
+    document.getElementById('capNote').textContent= `diminishing returns cap = ${s.repeatability_cap ?? 3}`;
+
+    // Date range label
+    const dr = s.date_range_seen || {};
+    document.getElementById('dateRange').textContent = (dr.first||'—') + ' → ' + (dr.last||'—');
+
+    // Per-ride table
+    const tbody = document.querySelector('#ridesTable tbody');
+    tbody.innerHTML = '';
+    const newMap = s.per_ride_new_miles_est || {};
+    const meta   = s.per_ride_meta || {};
+    // sort by date desc if present, else by id desc
+    const ids = Object.keys(newMap);
+    ids.sort((a,b)=>{
+      const da = (meta[a]?.date)||'', db=(meta[b]?.date)||'';
+      return db.localeCompare(da) || b.localeCompare(a);
+    });
+    for (const id of ids) {
+      const milesNew = Number(newMap[id]||0);
+      const m = meta[id] || {};
+      const tot = Number(m.miles_total || 0);
+      const pctNew = tot>0 ? (100*milesNew/tot) : 0;
+      const tr = document.createElement('tr');
+      const label = m.name ? m.name : id;
+      tr.innerHTML = `
+        <td>${linkToActivity(id, label)}</td>
+        <td>${m.date || ''}</td>
+        <td>${fmt(milesNew,2)}</td>
+        <td>${pct(pctNew)}</td>
+        <td>${fmt(tot,2)}</td>`;
+      tbody.appendChild(tr);
+    }
+
+    // Monthly breakdown
+    const mtb = document.querySelector('#monthTable tbody');
+    mtb.innerHTML = '';
+    (s.by_month || []).sort((a,b)=> (a.key||'').localeCompare(b.key||'')).forEach(m=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${m.year}</td><td>${m.month.toString().padStart(2,'0')}</td>
+                      <td>${fmt(m.total_miles,1)}</td>
+                      <td>${fmt(m.new_miles,2)}</td>
+                      <td>${pct(m.exploration_pct)}</td>
+                      <td>${fmt(m.repeatability_score,1)}</td>`;
+      mtb.appendChild(tr);
+    });
+
+    // Bests
+    const bests = document.getElementById('bests');
+    bests.innerHTML = '';
+    const bm = s.best_month_unique;
+    if (bm) bests.innerHTML += `<div class="kv"><b>Best month (unique)</b><br>${bm.year}-${String(bm.month).padStart(2,'0')} • ${fmt(bm.new_miles,2)} mi</div>`;
+    const bme = s.best_month_exploration;
+    if (bme) bests.innerHTML += `<div class="kv"><b>Best month (exploration %)</b><br>${bme.year}-${String(bme.month).padStart(2,'0')} • ${pct(bme.exploration_pct)} (${fmt(bme.total_miles,1)} mi)</div>`;
+    const br = s.best_ride_unique;
+    if (br) bests.innerHTML += `<div class="kv"><b>Best ride (unique miles)</b><br>${linkToActivity(br.id, br.name || br.id)} • ${br.date||''} • ${fmt(br.new_miles,2)} mi</div>`;
+    const bre = s.best_ride_exploration;
+    if (bre) bests.innerHTML += `<div class="kv"><b>Best ride (% new)</b><br>${linkToActivity(bre.id, bre.name || bre.id)} • ${bre.date||''} • ${pct(bre.pct_new)} (${fmt(bre.miles_total,1)} mi)</div>`;
+
+    // Streaks / zero-new
+    const st = s.streaks || {};
+    const streaks = document.getElementById('streaks');
+    streaks.innerHTML = `
+      <div class="kv"><b>Longest exploration streak</b><br>${st.exploration_streak_max||0} rides</div>
+      <div class="kv"><b>Longest gap without new roads</b><br>${st.longest_gap_no_new_days||0} days</div>
+      <div class="kv"><b>Rides with 0 new miles</b><br>${fmt(st.pct_rides_zero_new||0,1)}%</div>
+    `;
+
+    // Leaderboard: top rides by new miles
+    const bestBody = document.querySelector('#bestRides tbody');
+    bestBody.innerHTML = '';
+    (s.rides_ranked_by_new || []).forEach(([id, nm])=>{
+      const m = meta[id] || {};
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${linkToActivity(id, m.name || id)}</td><td>${m.date||''}</td><td>${fmt(nm,2)}</td>`;
+      bestBody.appendChild(tr);
+    });
+  }
+
+  loadStats().catch(console.error);
+  </script>
+</body>
+</html>

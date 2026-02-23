@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+    {% include "_analytics.html" %}
+  <title>Route Builder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/route_builder.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    window.PMTILES_BASE_URL = "{{ pmtiles_base_url|default('') }}";
+    window.PMTILES_ASSETS = {{ pmtiles_assets|default({})|tojson }};
+    function pmtilesAsset(name) {
+      const assetMap = window.PMTILES_ASSETS || {};
+      const explicit = (assetMap[name] || "").trim();
+      if (explicit) {
+        const cleanExplicit = explicit.replace(/\/+$/, "");
+        return `pmtiles://${cleanExplicit}`;
+      }
+      const base = (window.PMTILES_BASE_URL || "").trim();
+      if (!base) {
+        return null;
+      }
+      const cleanBase = base.replace(/\/+$/, "");
+      return `pmtiles://${cleanBase}/${name}`;
+    }
+  </script>
+</head>
+<body>
+  <a href="/how-this-works" style="position:fixed;top:18px;right:18px;padding:6px 12px;border-radius:999px;border:1px solid rgba(148,163,184,0.6);color:#0f172a;text-decoration:none;font-size:0.8rem;background:#fff;z-index:1000;">Support</a>
+<div class="app-shell">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Planner • Elevation • Segments</p>
+      <h1>Route Builder</h1>
+      <p class="lede">Drop points, snap to the best lines, and instantly see elevation, gradients, and statistics. Every edit updates the analytics below so you can iterate like a pro.</p>
+    </div>
+    <div class="hero-controls">
+      <div class="unit-toggle">
+        <button class="chip active" data-units="metric">Metric</button>
+        <button class="chip" data-units="imperial">Imperial</button>
+      </div>
+      <div id="buildStatus" class="status">Add at least two points to get started.</div>
+    </div>
+  </header>
+
+  <section class="builder-grid">
+    <div class="map-column">
+      <section class="control-bar map-toolbar">
+        <div class="chip-group">
+          <button id="snapToggle" class="chip strong">Snap: ON</button>
+          <button id="undoBtn" class="chip">Undo</button>
+          <button id="reverseBtn" class="chip">Reverse</button>
+          <button id="clearBtn" class="chip">Clear</button>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="gradientToggle" checked>
+          <span>Color by gradient</span>
+        </label>
+        <div class="density-control">
+          <label for="pointCount">Equal spacing</label>
+          <input id="pointCount" type="range" min="200" max="6000" value="3200">
+          <span id="pointCountValue">3200 pts</span>
+        </div>
+        <div class="chip" id="exportBtn">Quick GeoJSON</div>
+      </section>
+
+      <div class="map-shell">
+        <div class="map-surface">
+          <button id="mapExpandBtn" class="map-expand-btn" type="button" aria-label="Toggle full screen">Full screen</button>
+          <div id="map"></div>
+          <div class="map-overlay" id="mapOverlay" hidden>Fetching best path…</div>
+          <div class="map-stat-bar">
+            <div class="meta-chip">Points <span id="wpCount">0</span></div>
+            <div class="meta-chip">Distance <span id="primaryDistance">0.00 km</span></div>
+            <div class="meta-chip">Gain <span id="primaryGain">0 m</span></div>
+            <div class="meta-chip">Est. Time <span id="primaryTime">0h 00m</span></div>
+          </div>
+        </div>
+      </div>
+
+      <section class="chart-panel">
+        <div class="panel-header">
+          <div>
+            <h3>Elevation profile</h3>
+            <span>Hover for grade and elevation</span>
+          </div>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="elevationChart"></canvas>
+        </div>
+        <div class="chart-readout" id="chartReadout">Hover the profile to inspect gradient and elevation.</div>
+      </section>
+    </div>
+
+    <aside class="sidebar">
+      <section class="save-panel">
+        <div class="input-block">
+          <label for="routeName">Route name</label>
+          <input id="routeName" type="text" placeholder="Morning spin with the crew">
+        </div>
+        <div class="input-block">
+          <label for="routeNotes">Notes</label>
+          <textarea id="routeNotes" rows="1" placeholder="Surface, traffic reminders, goals..."></textarea>
+        </div>
+        <div class="save-actions">
+          <button id="saveBtn" class="chip strong">Save to Routes</button>
+          <div id="saveState" class="save-state">Add points to enable saving.</div>
+          <div class="export-actions">
+            <label for="exportFormat">Export as</label>
+            <select id="exportFormat">
+              <option value="geojson">GeoJSON</option>
+              <option value="gpx">GPX</option>
+              <option value="tcx">TCX</option>
+            </select>
+            <button id="remoteExportBtn" class="chip" disabled>Export Saved Route</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="insight-panel" data-reorder-container>
+      <div class="panel-card" data-reorderable data-panel="overview">
+        <div class="panel-header">
+          <div>
+            <h3>Overview</h3>
+            <span>Distance • gain • pacing</span>
+          </div>
+          <button class="drag-handle" type="button" aria-label="Drag to reorder">⠿</button>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card"><p>Distance</p><strong id="statDistance">0.00 km</strong><small>per selected path</small></div>
+          <div class="stat-card"><p>Climb</p><strong id="statClimb">0 m</strong><small id="statClimbRatio">0%</small></div>
+          <div class="stat-card"><p>Descent</p><strong id="statDescent">0 m</strong><small>Net change <span id="statNet">0 m</span></small></div>
+          <div class="stat-card"><p>Gradients</p><strong><span id="statMaxGrade">0%</span> / <span id="statMinGrade">0%</span></strong><small>avg <span id="statAvgGrade">0%</span></small></div>
+          <div class="stat-card"><p>Segments</p><strong id="statSegments">0</strong><small>auto chunked per ~0.8 km</small></div>
+          <div class="stat-card"><p>Ride time</p><strong id="statEstTime">0h 00m</strong><small>assuming steady pace</small></div>
+        </div>
+      </div>
+
+      <div class="panel-card" data-reorderable data-panel="waypoints">
+        <div class="panel-header">
+          <div>
+            <h3>Waypoints</h3>
+            <span>Reorder to change the flow</span>
+          </div>
+          <button class="drag-handle" type="button" aria-label="Drag to reorder">⠿</button>
+        </div>
+        <div id="waypointList" class="waypoint-list empty">Drop points on the map.</div>
+      </div>
+
+      <div class="panel-card" data-reorderable data-panel="segments">
+        <div class="panel-header">
+          <div>
+            <h3>Segments preview</h3>
+            <span>Distance • grade • climb</span>
+          </div>
+          <button class="drag-handle" type="button" aria-label="Drag to reorder">⠿</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Distance</th>
+                <th>Grade</th>
+                <th>Climb</th>
+              </tr>
+            </thead>
+            <tbody id="segmentsBody">
+              <tr><td colspan="4" class="muted">Add at least 0.8 km to unlock analytics.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      </div>
+    </aside>
+  </section>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const crosshairPlugin = {
+  id:'routeCrosshair',
+  afterDatasetsDraw(chart){
+    const active = chart.getActiveElements?.() || [];
+    if(!active.length) return;
+    const ctx = chart.ctx;
+    const {top,bottom} = chart.chartArea;
+    const x = active[0].element?.x;
+    if(typeof x === 'undefined') return;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.setLineDash([4,4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, top);
+    ctx.lineTo(x, bottom);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+if(window.Chart && typeof Chart.register === 'function'){
+  Chart.register(crosshairPlugin);
+}
+
+const map = L.map('map',{
+  zoomControl:false,
+  doubleClickZoom:false,
+  scrollWheelZoom:true,
+  wheelPxPerZoomLevel:80
+}).setView([40.5596,-80.166],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:19,
+  attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+L.control.zoom({position:'bottomright'}).addTo(map);
+const mapContainer = map.getContainer();
+mapContainer.style.touchAction = 'manipulation';
+window.addEventListener('resize', ()=>map.invalidateSize());
+setTimeout(()=>map.invalidateSize(), 250);
+
+const dotIcon = L.divIcon({className:'route-dot',iconSize:[10,10],iconAnchor:[5,5]});
+const ORS_KEY = "{{ ors_api_key }}";
+const PROFILE = 'cycling-regular';
+const DENSIFY_SPACING_METERS = 5;
+const ELEVATION_SMOOTH_WINDOW = 9;
+const GRADE_WINDOW_METERS = 20;
+const state = {
+  markers: [],
+  layers: [],
+  previewLine: null,
+  line: [],
+  elevation: [],
+  gradients: [],
+  stats: null,
+  snap: true,
+  units: 'metric',
+  chart: null,
+  building: false,
+  lastBuild: 0,
+  routeId: null,
+  dirty: false,
+  loadingRoute: false,
+  pointCount: 3200,
+  baseLine: [],
+  baseElevations: [],
+  baseDistances: [],
+};
+let rebuildTimer = null;
+
+const waypointList = document.getElementById('waypointList');
+const wpCountEl = document.getElementById('wpCount');
+const buildStatus = document.getElementById('buildStatus');
+const mapOverlay = document.getElementById('mapOverlay');
+const mapExpandBtn = document.getElementById('mapExpandBtn');
+const gradientToggle = document.getElementById('gradientToggle');
+const segmentsBody = document.getElementById('segmentsBody');
+const quickExportBtn = document.getElementById('exportBtn');
+const chipUnitButtons = document.querySelectorAll('[data-units]');
+const routeNameInput = document.getElementById('routeName');
+const routeNotesInput = document.getElementById('routeNotes');
+const saveBtn = document.getElementById('saveBtn');
+const saveState = document.getElementById('saveState');
+const exportFormatSelect = document.getElementById('exportFormat');
+const remoteExportBtn = document.getElementById('remoteExportBtn');
+const pointSlider = document.getElementById('pointCount');
+const pointCountValue = document.getElementById('pointCountValue');
+const chartCanvas = document.getElementById('elevationChart');
+const chartReadout = document.getElementById('chartReadout');
+const initialRouteId = new URLSearchParams(window.location.search).get('route_id');
+let mapExpanded=false;
+let chartSeriesCache = null;
+const chartReadoutDefault = 'Hover the profile to inspect gradient and elevation.';
+if(chartReadout){
+  chartReadout.textContent = chartReadoutDefault;
+}
+chartCanvas?.addEventListener('mousemove', handleChartHover);
+chartCanvas?.addEventListener('mouseleave', resetChartReadout);
+
+function varMuted(){
+  const value = getComputedStyle(document.documentElement).getPropertyValue('--muted');
+  return value ? value.trim() : '#94a3b8';
+}
+
+function setMapExpanded(expanded){
+  mapExpanded = expanded;
+  document.body.classList.toggle('map-expanded', mapExpanded);
+  if(mapExpandBtn){
+    mapExpandBtn.textContent = mapExpanded ? 'Exit full screen' : 'Full screen';
+  }
+  map.invalidateSize();
+  setTimeout(()=>map.invalidateSize(), 200);
+}
+
+mapExpandBtn?.addEventListener('click', ()=> setMapExpanded(!mapExpanded));
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape' && mapExpanded){
+    setMapExpanded(false);
+  }
+});
+
+function clampPointCount(value){
+  const min = Number(pointSlider?.min) || 2;
+  const max = Number(pointSlider?.max) || 6000;
+  const numeric = Number(value);
+  if(!Number.isFinite(numeric)) return min;
+  return Math.max(min, Math.min(max, Math.round(numeric)));
+}
+
+function updateSaveIndicator(message){
+  if(message){
+    saveState.textContent = message;
+    return;
+  }
+  if(state.line.length < 2){
+    saveState.textContent = 'Add at least two points to save.';
+  }else if(state.dirty){
+    saveState.textContent = 'Unsaved changes';
+  }else if(state.routeId){
+    saveState.textContent = 'Saved to library';
+  }else{
+    saveState.textContent = 'Ready to save';
+  }
+}
+
+function refreshExportState(){
+  const hasSavedRoute = Boolean(state.routeId);
+  remoteExportBtn.disabled = !hasSavedRoute;
+  const label = hasSavedRoute ? `Export ${exportFormatSelect.value.toUpperCase()}` : 'Save before exporting';
+  remoteExportBtn.textContent = label;
+}
+
+function updatePointCountLabel(){
+  if(pointSlider){
+    pointSlider.value = clampPointCount(state.pointCount);
+  }
+  if(pointCountValue){
+    pointCountValue.textContent = `${clampPointCount(state.pointCount)} pts`;
+  }
+}
+
+function markDirty(){
+  if(state.loadingRoute) return;
+  state.dirty = true;
+  updateSaveIndicator();
+}
+
+function addMarkerAt(latlng){
+  const marker = L.marker(latlng,{icon:dotIcon,draggable:true}).addTo(map);
+  marker.on('dragstart',()=>{
+    beginPreviewDrag();
+  });
+  marker.on('drag',()=>{
+    updatePreviewLine();
+  });
+  marker.on('dragend',()=>{
+    endPreviewDrag();
+    scheduleBuild();
+    markDirty();
+  });
+  state.markers.push(marker);
+  return marker;
+}
+
+function clearMarkers(){
+  state.markers.forEach(m=>map.removeLayer(m));
+  state.markers=[];
+}
+
+function collectWaypoints(){
+  return state.markers.map(m=>{
+    const ll = m.getLatLng();
+    return [ll.lat,ll.lng];
+  });
+}
+
+map.on('click', e => {
+  addMarkerAt(e.latlng);
+  renderWaypoints();
+  scheduleBuild();
+  markDirty();
+});
+
+document.getElementById('snapToggle').addEventListener('click',()=>{
+  state.snap = !state.snap;
+  document.getElementById('snapToggle').textContent = state.snap ? 'Snap: ON' : 'Snap: OFF';
+  scheduleBuild();
+  markDirty();
+});
+
+document.getElementById('undoBtn').addEventListener('click',()=>{
+  if(!state.markers.length) return;
+  const m = state.markers.pop();
+  map.removeLayer(m);
+  renderWaypoints();
+  scheduleBuild();
+  markDirty();
+});
+
+document.getElementById('clearBtn').addEventListener('click',()=>{
+  state.markers.forEach(m=>map.removeLayer(m));
+  state.markers=[];
+  clearRoute();
+  renderWaypoints();
+  state.line=[];
+  state.elevation=[];
+  state.gradients=[];
+  state.stats=null;
+  state.baseLine=[];
+  state.baseElevations=[];
+  state.baseDistances=[];
+  updateStats();
+  updateSegments();
+  updateChart();
+  updatePrimary();
+  updateStatus('Cleared all points.');
+  markDirty();
+  updateSaveIndicator();
+});
+
+document.getElementById('reverseBtn').addEventListener('click',()=>{
+  if(state.markers.length<2) return;
+  state.markers.reverse();
+  renderWaypoints();
+  scheduleBuild();
+  markDirty();
+});
+
+gradientToggle.addEventListener('change',()=>{
+  if(!state.line.length) return;
+  redrawRoute();
+});
+
+chipUnitButtons.forEach(btn=>btn.addEventListener('click',()=>{
+  chipUnitButtons.forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  state.units = btn.dataset.units;
+  updateStats();
+  updateSegments();
+  updateChart();
+  updatePrimary();
+}));
+
+quickExportBtn.addEventListener('click',()=>{
+  if(!state.line.length){
+    alert('Build a route first.');
+    return;
+  }
+  const feature = {
+    type:'Feature',
+    properties:{name:'Route Builder Export'},
+    geometry:{type:'LineString',coordinates: state.line.map(pt=>[pt[1],pt[0]])}
+  };
+  const blob = new Blob([JSON.stringify({type:'FeatureCollection',features:[feature]},null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url;
+  a.download='route.geojson';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+
+if(pointSlider){
+  pointSlider.addEventListener('input', ()=>{
+    state.pointCount = clampPointCount(pointSlider.value);
+    updatePointCountLabel();
+  });
+  pointSlider.addEventListener('change', ()=>{
+    state.pointCount = clampPointCount(pointSlider.value);
+    updatePointCountLabel();
+    if(state.baseLine.length){
+      applyEqualSpacing();
+      drawRoute();
+      markDirty();
+    }
+  });
+}
+
+routeNameInput.addEventListener('input', markDirty);
+routeNotesInput.addEventListener('input', markDirty);
+saveBtn.addEventListener('click', saveRoute);
+exportFormatSelect.addEventListener('change', refreshExportState);
+remoteExportBtn.addEventListener('click',()=>{
+  if(!state.routeId){
+    alert('Save the route first.');
+    return;
+  }
+  const fmt = exportFormatSelect.value;
+  window.open(`/routes/export/${state.routeId}?fmt=${fmt}`,'_blank');
+});
+
+function renderWaypoints(){
+  wpCountEl.textContent = state.markers.length;
+  waypointList.classList.toggle('empty', state.markers.length===0);
+  if(!state.markers.length){
+    waypointList.textContent = 'Drop points on the map.';
+    return;
+  }
+  waypointList.innerHTML = '';
+  state.markers.forEach((m,i)=>{
+    const chip = document.createElement('div');
+    chip.className='waypoint-chip';
+    chip.innerHTML = `<span>#${i+1}</span>
+      <div>
+        <button onclick="moveWP(${i},-1)" ${i===0?'disabled':''}>↑</button>
+        <button onclick="moveWP(${i},1)" ${i===state.markers.length-1?'disabled':''}>↓</button>
+        <button onclick="deleteWP(${i})">✕</button>
+      </div>`;
+    chip.addEventListener('click',()=>map.panTo(m.getLatLng()));
+    waypointList.appendChild(chip);
+  });
+}
+
+window.moveWP = (i,dir)=>{
+  const j=i+dir;
+  if(j<0 || j>=state.markers.length) return;
+  const marker = state.markers.splice(i,1)[0];
+  state.markers.splice(j,0,marker);
+  renderWaypoints();
+  scheduleBuild();
+  markDirty();
+};
+
+window.deleteWP = (i)=>{
+  const marker = state.markers.splice(i,1)[0];
+  map.removeLayer(marker);
+  renderWaypoints();
+  scheduleBuild();
+  markDirty();
+};
+
+function scheduleBuild(){
+  clearTimeout(rebuildTimer);
+  rebuildTimer = setTimeout(buildRoute, 200);
+}
+
+async function buildRoute(){
+  if(state.markers.length < 2){
+    clearRoute();
+    state.line=[];
+    state.elevation=[];
+    state.gradients=[];
+    state.stats=null;
+    state.baseLine=[];
+    state.baseElevations=[];
+    state.baseDistances=[];
+    updateStats();
+    updateSegments();
+    updateChart();
+    updatePrimary();
+    updateStatus('Add at least two points to build a route.');
+    updateSaveIndicator();
+    return;
+  }
+  updateStatus(state.snap ? 'Snapping to roads…' : 'Building straight segments…', true);
+  mapOverlay.hidden = false;
+  try{
+    const coords = state.markers.map(m=>{
+      const ll = m.getLatLng();
+      return [ll.lat,ll.lng];
+    });
+    let path;
+    if(state.snap){
+      const res = await fetch(`https://api.openrouteservice.org/v2/directions/${PROFILE}/geojson`,{
+        method:'POST',
+        headers:{
+          Authorization: ORS_KEY,
+          'Content-Type':'application/json'
+        },
+        body: JSON.stringify({coordinates: coords.map(c=>[c[1],c[0]])})
+      });
+      const json = await res.json();
+      if(!json.features || !json.features.length) throw new Error('Routing failed');
+      path = json.features[0].geometry.coordinates.map(c=>[c[1],c[0]]);
+    }else{
+      path = coords;
+    }
+    const baseLine = densify(path, DENSIFY_SPACING_METERS);
+    const elevRes = await fetch('/elevations',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({coords: baseLine.map(p=>[p[1],p[0]])})
+    });
+    const elevJson = await elevRes.json();
+    let rawElev = Array.isArray(elevJson.elevations) ? elevJson.elevations : [];
+    if(rawElev.length !== baseLine.length){
+      rawElev = baseLine.map(()=>rawElev.length ? rawElev[rawElev.length-1] : 0);
+    }
+    const elevations = smoothElevations(rawElev, ELEVATION_SMOOTH_WINDOW);
+    state.baseLine = baseLine;
+    state.baseElevations = elevations;
+    state.baseDistances = cumulativeDistances(baseLine);
+    applyEqualSpacing();
+    drawRoute();
+    updateStatus('Route ready. Drag points to refine.');
+  }catch(err){
+    console.error(err);
+    updateStatus('Routing failed. Try toggling snap or moving points.');
+  }finally{
+    mapOverlay.hidden = true;
+  }
+}
+
+function drawRoute(){
+  clearRoute();
+  if(!state.line.length) return;
+  const stats = computeStats(state.line,state.elevation);
+  state.stats = stats;
+  state.gradients = stats.gradients;
+  for(let i=0;i<state.line.length-1;i++){
+    const grad = state.gradients[i] || 0;
+    state.layers.push(L.polyline([state.line[i],state.line[i+1]],{
+      color: gradientToggle.checked ? gradeColor(grad) : '#ff3b3b',
+      weight:4,
+      opacity:0.9
+    }).addTo(map));
+  }
+  updateStats();
+  updateSegments();
+  updateChart();
+  updatePrimary();
+}
+
+function redrawRoute(){
+  if(!state.line.length) return;
+  drawRoute();
+}
+
+function clearRoute(){
+  state.layers.forEach(layer=>map.removeLayer(layer));
+  state.layers=[];
+  if(!state.baseLine.length){
+    state.line=[];
+    state.elevation=[];
+  }
+}
+
+function beginPreviewDrag(){
+  updatePreviewLine();
+}
+
+function updatePreviewLine(){
+  const points = collectWaypoints();
+  if(points.length < 2){
+    if(state.previewLine){
+      map.removeLayer(state.previewLine);
+      state.previewLine = null;
+    }
+    return;
+  }
+  if(state.previewLine){
+    state.previewLine.setLatLngs(points);
+    return;
+  }
+  state.previewLine = L.polyline(points,{
+    color:'#a1a1aa',
+    weight:3,
+    opacity:0.75,
+    dashArray:'6 8'
+  }).addTo(map);
+}
+
+function endPreviewDrag(){
+  if(state.previewLine){
+    map.removeLayer(state.previewLine);
+    state.previewLine = null;
+  }
+}
+
+function applyEqualSpacing(){
+  if(!state.baseLine.length){
+    state.line=[];
+    state.elevation=[];
+    return;
+  }
+  const count = clampPointCount(state.pointCount);
+  const { points, offsets } = resampleLine(state.baseLine, count);
+  const baseDistances = state.baseDistances.length ? state.baseDistances : cumulativeDistances(state.baseLine);
+  const elevations = smoothElevations(
+    sampleElevations(baseDistances, state.baseElevations, offsets),
+    ELEVATION_SMOOTH_WINDOW
+  );
+  state.line = points;
+  state.elevation = elevations;
+}
+
+let draggedCard = null;
+
+function initPanelReorder(){
+  const container = document.querySelector('[data-reorder-container]');
+  if(!container) return;
+  container.addEventListener('dragover', handleCardDragOver);
+  container.addEventListener('drop', e=>e.preventDefault());
+  container.querySelectorAll('[data-reorderable]').forEach(card=>{
+    card.setAttribute('draggable','true');
+    card.addEventListener('dragstart', handleCardDragStart);
+    card.addEventListener('dragend', handleCardDragEnd);
+  });
+}
+
+function handleCardDragStart(e){
+  if(!e.target.closest('.drag-handle')){
+    e.preventDefault();
+    return;
+  }
+  draggedCard = e.currentTarget;
+  draggedCard.classList.add('dragging');
+  if(e.dataTransfer){
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain','');
+  }
+}
+
+function handleCardDragEnd(){
+  if(draggedCard){
+    draggedCard.classList.remove('dragging');
+  }
+  draggedCard = null;
+}
+
+function handleCardDragOver(e){
+  if(!draggedCard) return;
+  e.preventDefault();
+  const container = e.currentTarget;
+  const afterElement = getCardAfterPosition(container, e.clientY);
+  if(!afterElement){
+    container.appendChild(draggedCard);
+  }else if(afterElement !== draggedCard){
+    container.insertBefore(draggedCard, afterElement);
+  }
+}
+
+function getCardAfterPosition(container, y){
+  const cards = [...container.querySelectorAll('[data-reorderable]:not(.dragging)')];
+  let closest = {offset: Number.NEGATIVE_INFINITY, element:null};
+  cards.forEach(card=>{
+    const box = card.getBoundingClientRect();
+    const offset = y - box.top - box.height/2;
+    if(offset < 0 && offset > closest.offset){
+      closest = {offset, element:card};
+    }
+  });
+  return closest.element;
+}
+
+async function saveRoute(){
+  if(state.line.length < 2){
+    alert('Add at least two points before saving.');
+    return;
+  }
+  saveBtn.disabled = true;
+  updateSaveIndicator('Saving…');
+  const payload = {
+    name: routeNameInput.value.trim() || 'Untitled Route',
+    description: routeNotesInput.value.trim(),
+    waypoints: collectWaypoints(),
+    line: state.line,
+    elevations: state.elevation.length === state.line.length ? state.elevation : state.line.map(()=>0),
+  };
+  const isUpdate = Boolean(state.routeId);
+  const url = isUpdate ? `/api/routes/${state.routeId}` : '/api/routes';
+  const method = isUpdate ? 'PUT' : 'POST';
+  try{
+    const res = await fetch(url,{
+      method,
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if(!res.ok){
+      throw new Error(json.error || 'Unable to save route.');
+    }
+    state.routeId = json.id;
+    state.dirty = false;
+    updateSaveIndicator('Saved to library');
+    refreshExportState();
+    const params = new URLSearchParams(window.location.search);
+    params.set('route_id', state.routeId);
+    const search = params.toString();
+    const newUrl = search ? `${window.location.pathname}?${search}` : window.location.pathname;
+    window.history.replaceState({},'',newUrl);
+    updateStatus('Route saved to Routes library.');
+  }catch(err){
+    console.error(err);
+    updateSaveIndicator('Save failed');
+    alert(err.message || 'Unable to save route.');
+  }finally{
+    saveBtn.disabled = state.line.length < 2;
+  }
+}
+
+function computeStats(line,elev){
+  let total=0, climb=0, descent=0, maxGrade=-99, minGrade=99;
+  const gradients=[];
+  const samples=[0];
+  const segments=[];
+  const chunk = 800;
+  let chunkDist=0, chunkGain=0;
+  let chunkStart=0;
+  const distances = cumulativeDistances(line);
+  for(let i=0;i<line.length-1;i++){
+    const ds = haversine(line[i],line[i+1]);
+    const dh = elev[i+1]-elev[i];
+    total += ds;
+    samples.push(total);
+    const target = distances[i+1];
+    let grade = estimateGradeAtDistance(distances, elev, target, GRADE_WINDOW_METERS);
+    gradients.push(grade);
+    if(dh>0) climb += dh; else descent -= dh;
+    maxGrade = Math.max(maxGrade,grade);
+    minGrade = Math.min(minGrade,grade);
+    chunkDist += ds;
+    if(dh>0) chunkGain += dh;
+    if(chunkDist >= chunk || i===line.length-2){
+      segments.push({
+        start: chunkStart,
+        length: chunkDist,
+        gain: chunkGain,
+        grade: chunkDist ? (chunkGain/chunkDist*100) : 0
+      });
+      chunkStart += chunkDist;
+      chunkDist = 0;
+      chunkGain = 0;
+    }
+  }
+  const avgGrade = total ? (climb/total*100) : 0;
+  return {
+    distance: total,
+    climb,
+    descent,
+    maxGrade,
+    minGrade,
+    avgGrade,
+    samples,
+    gradients,
+    segments
+  };
+}
+
+function updateStats(){
+  const stats = state.stats;
+  const dist = stats ? convertDistance(stats.distance) : {value:0,unit: state.units==='imperial'?'mi':'km'};
+  document.getElementById('statDistance').textContent = `${dist.value.toFixed(2)} ${dist.unit}`;
+  const climb = stats ? convertElevation(stats.climb) : {value:0,unit: state.units==='imperial'?'ft':'m'};
+  const descent = stats ? convertElevation(stats.descent) : {value:0,unit: state.units==='imperial'?'ft':'m'};
+  document.getElementById('statClimb').textContent = `${Math.round(climb.value).toLocaleString()} ${climb.unit}`;
+  document.getElementById('statDescent').textContent = `${Math.round(descent.value).toLocaleString()} ${descent.unit}`;
+  document.getElementById('statNet').textContent = stats ? `${Math.round((climb.value - descent.value)).toLocaleString()} ${climb.unit}` : `0 ${climb.unit}`;
+  document.getElementById('statAvgGrade').textContent = stats ? `${stats.avgGrade.toFixed(1)}%` : '0%';
+  document.getElementById('statMaxGrade').textContent = stats ? `${stats.maxGrade.toFixed(1)}%` : '0%';
+  document.getElementById('statMinGrade').textContent = stats ? `${stats.minGrade.toFixed(1)}%` : '0%';
+  document.getElementById('statClimbRatio').textContent = stats ? `${(stats.climb/stats.distance*100).toFixed(1)}% ratio` : '0%';
+  document.getElementById('statSegments').textContent = stats ? stats.segments.length : 0;
+  document.getElementById('statEstTime').textContent = stats ? formatHours(stats.distance) : '0h 00m';
+}
+
+function updateSegments(){
+  const stats = state.stats;
+  if(!stats || !stats.segments.length){
+    segmentsBody.innerHTML = '<tr><td colspan="4" class="muted">Add at least 0.8 km to unlock analytics.</td></tr>';
+    return;
+  }
+  const distUnits = state.units==='imperial' ? 'mi' : 'km';
+  const elevUnits = state.units==='imperial' ? 'ft' : 'm';
+  segmentsBody.innerHTML = stats.segments.map((seg,i)=>{
+    const dist = convertDistance(seg.length);
+    const gain = convertElevation(seg.gain);
+    const grade = seg.grade;
+    let gradeClass = '';
+    if(grade>6) gradeClass='steep';
+    else if(grade>0) gradeClass='gentle';
+    else if(grade<-4) gradeClass='desc';
+    return `<tr class="${gradeClass}">
+      <td>${i+1}</td>
+      <td>${dist.value.toFixed(2)} ${distUnits}</td>
+      <td>${grade.toFixed(1)}%</td>
+      <td>${Math.round(gain.value)} ${elevUnits}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateChart(){
+  if(!state.stats){
+    chartSeriesCache = null;
+    resetChartReadout();
+    return;
+  }
+    const chartSeries = buildChartSeries(state.line, state.elevation);
+    if(!chartSeries){
+      return;
+    }
+    chartSeriesCache = chartSeries;
+  const labelsSuffix = state.units==='imperial' ? 'mi' : 'km';
+  const elevSuffix = state.units==='imperial' ? 'ft' : 'm';
+  if(state.chart){
+    state.chart.data.labels = chartSeries.distances.map(v=>(Math.round(v*10)/10).toFixed(1));
+    state.chart.data.datasets[0].data = chartSeries.values;
+    state.chart.options.plugins.tooltip.callbacks.title = (items)=>`Distance ${items[0].label} ${labelsSuffix}`;
+    state.chart.options.plugins.tooltip.callbacks.label = (ctx)=>{
+      const idx = ctx.dataIndex;
+      const elev = ctx.parsed.y.toFixed(1);
+      const grade = chartSeries.grades[idx] ? chartSeries.grades[idx].toFixed(1) : '0.0';
+      return `Elev ${elev} ${elevSuffix} · Grade ${grade}%`;
+    };
+    state.chart.options.scales.x.title.text = `Distance (${labelsSuffix})`;
+    state.chart.options.scales.y.title.text = `Elevation (${elevSuffix})`;
+    state.chart.update();
+    resetChartReadout();
+    return;
+  }
+  const canvas = document.getElementById('elevationChart');
+  const ctx = canvas.getContext('2d');
+  const gradientFill = ctx.createLinearGradient(0,0,0,canvas.height || canvas.clientHeight || 320);
+  gradientFill.addColorStop(0,'rgba(252,76,2,0.55)');
+  gradientFill.addColorStop(1,'rgba(252,76,2,0.08)');
+  state.chart = new Chart(ctx,{
+    type:'line',
+    data:{
+      labels: chartSeries.distances.map(v=>(Math.round(v*10)/10).toFixed(1)),
+      datasets:[{
+        label:`Elevation (${elevSuffix})`,
+        data: chartSeries.values,
+        borderColor:'#ff6b2b',
+        backgroundColor: gradientFill,
+        fill:true,
+        tension:0.45,
+        cubicInterpolationMode:'monotone',
+        borderJoinStyle:'round',
+        borderCapStyle:'round',
+        pointRadius:0,
+        pointHoverRadius:5,
+        pointHitRadius:8,
+        borderWidth:2.5
+      }]
+    },
+    options:{
+      maintainAspectRatio:false,
+      animation:{duration:420},
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        tooltip:{
+          callbacks:{
+            title:(items)=>`Distance ${items[0].label} ${labelsSuffix}`,
+            label:(ctx)=>{
+              const idx = ctx.dataIndex;
+              const elev = ctx.parsed.y.toFixed(1);
+              const grade = chartSeries.grades[idx] ? chartSeries.grades[idx].toFixed(1) : '0.0';
+              return `Elev ${elev} ${elevSuffix} · Grade ${grade}%`;
+            }
+          },
+          backgroundColor:'rgba(12,15,23,0.9)',
+          borderColor:'rgba(255,255,255,0.08)',
+          borderWidth:1
+        },
+        legend:{display:false}
+      },
+      scales:{
+        x:{
+          title:{display:true,text:`Distance (${labelsSuffix})`,color:varMuted()},
+          ticks:{color:'#d1d5db'},
+          grid:{color:'rgba(255,255,255,0.05)'}
+        },
+        y:{
+          title:{display:true,text:`Elevation (${elevSuffix})`,color:varMuted()},
+          ticks:{color:'#d1d5db'},
+          grid:{color:'rgba(255,255,255,0.08)'}
+        }
+      }
+    }
+  });
+  resetChartReadout();
+}
+
+function updatePrimary(){
+  const stats = state.stats;
+  const dist = stats ? convertDistance(stats.distance) : {value:0,unit: state.units==='imperial'?'mi':'km'};
+  const climb = stats ? convertElevation(stats.climb) : {value:0,unit: state.units==='imperial'?'ft':'m'};
+  document.getElementById('primaryDistance').textContent = `${dist.value.toFixed(2)} ${dist.unit}`;
+  document.getElementById('primaryGain').textContent = `${Math.round(climb.value)} ${climb.unit}`;
+  document.getElementById('primaryTime').textContent = stats ? formatHours(stats.distance) : '0h 00m';
+  refreshSaveButton();
+}
+
+function updateStatus(msg,busy=false){
+  buildStatus.textContent = msg;
+  buildStatus.classList.toggle('busy', !!busy);
+}
+
+function refreshSaveButton(){
+  saveBtn.disabled = state.line.length < 2;
+}
+
+async function loadRouteFromLibrary(routeId){
+  state.loadingRoute = true;
+  updateSaveIndicator('Loading route…');
+  try{
+    const res = await fetch(`/api/routes/${routeId}`);
+    if(!res.ok){
+      throw new Error('Route not found');
+    }
+    const data = await res.json();
+    routeNameInput.value = data.name || '';
+    routeNotesInput.value = data.description || '';
+    clearMarkers();
+    clearRoute();
+    state.line=[];
+    state.elevation=[];
+    state.gradients=[];
+    state.stats=null;
+    state.routeId = data.id;
+    state.dirty = false;
+    const wp = (data.waypoints && data.waypoints.length) ? data.waypoints : data.line || [];
+    wp.forEach(pt=>addMarkerAt({lat:pt[0],lng:pt[1]}));
+    renderWaypoints();
+    if(Array.isArray(data.line) && data.line.length){
+      state.baseLine = data.line.map(pt=>[pt[0],pt[1]]);
+      if(Array.isArray(data.elevations) && data.elevations.length===state.baseLine.length){
+        state.baseElevations = data.elevations.slice();
+      }else{
+        state.baseElevations = state.baseLine.map(()=>0);
+      }
+      state.baseDistances = cumulativeDistances(state.baseLine);
+      applyEqualSpacing();
+      drawRoute();
+      const bounds = L.latLngBounds(state.line.map(pt=>[pt[0],pt[1]]));
+      if(bounds.isValid()){
+        map.fitBounds(bounds.pad(0.2));
+      }
+    }else{
+      state.baseLine = [];
+      state.baseElevations = [];
+      state.baseDistances = [];
+      updateStats();
+      updateSegments();
+      updateChart();
+      updatePrimary();
+    }
+    updateStatus('Route loaded. Edit away.');
+    updateSaveIndicator();
+    refreshExportState();
+  }catch(err){
+    console.error(err);
+    updateStatus('Unable to load that route.');
+    updateSaveIndicator('Load failed');
+    state.routeId = null;
+    refreshExportState();
+  }finally{
+    state.loadingRoute = false;
+    refreshSaveButton();
+    updatePointCountLabel();
+  }
+}
+
+function convertDistance(m){
+  if(state.units==='imperial') return {value: m*0.000621371, unit:'mi'};
+  return {value: m/1000, unit:'km'};
+}
+
+function convertElevation(m){
+  if(state.units==='imperial') return {value: m*3.28084, unit:'ft'};
+  return {value: m, unit:'m'};
+}
+
+function buildChartSeries(line,elevations){
+  if(!Array.isArray(line) || line.length<2 || !Array.isArray(elevations) || elevations.length!==line.length){
+    return null;
+  }
+  const distances = cumulativeDistances(line);
+  const total = distances[distances.length-1] || 0;
+  if(total <= 0){
+    return null;
+  }
+  const sampleCount = Math.min(8000, Math.max(2400, state.pointCount*3));
+  const spacing = sampleCount > 1 ? total / (sampleCount - 1) : total;
+  const distanceValues=[];
+  const rawElevValues=[];
+  const grades=[];
+  for(let i=0;i<sampleCount;i++){
+    const target = i===sampleCount-1 ? total : spacing*i;
+    const distConverted = convertDistance(target);
+    const elevAtTarget = interpolateValueAtDistance(distances, elevations, target);
+    distanceValues.push(distConverted.value);
+    rawElevValues.push(convertElevation(elevAtTarget).value);
+    grades.push(estimateGradeAtDistance(distances, elevations, target, GRADE_WINDOW_METERS));
+  }
+  return {distances: distanceValues, values: rawElevValues, grades};
+}
+
+function estimateGradeAtDistance(distances, elevations, target, window=10){
+  const total = distances[distances.length-1] || 0;
+  if(total <= 0){
+    return 0;
+  }
+  const span = Math.max(window, 2);
+  const half = span/2;
+  const start = Math.max(0, target-half);
+  const end = Math.min(total, target+half);
+  if(end <= start){
+    return 0;
+  }
+  const startElev = interpolateValueAtDistance(distances, elevations, start);
+  const endElev = interpolateValueAtDistance(distances, elevations, end);
+  const rise = endElev - startElev;
+  const grade = (rise/(end-start))*100;
+  if(!Number.isFinite(grade)){
+    return 0;
+  }
+  return Math.max(-30, Math.min(30, grade));
+}
+
+function formatHours(distanceMeters){
+  const speed = state.units==='imperial' ? 17.5 : 28; // mph or km/h target pace
+  const distance = state.units==='imperial' ? distanceMeters*0.000621371 : distanceMeters/1000;
+  const hours = speed ? distance / speed : 0;
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h)*60);
+  return `${h}h ${String(m).padStart(2,'0')}m`;
+}
+
+function haversine(a,b){
+  const R = 6371000;
+  const dLat = (b[0]-a[0]) * Math.PI/180;
+  const dLon = (b[1]-a[1]) * Math.PI/180;
+  const la1 = a[0]*Math.PI/180;
+  const la2 = b[0]*Math.PI/180;
+  const h = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+
+function densify(line,spacing=6){
+  const out=[line[0]];
+  for(let i=0;i<line.length-1;i++){
+    const d = haversine(line[i],line[i+1]);
+    const steps = Math.max(1,Math.ceil(d/spacing));
+    for(let j=1;j<=steps;j++){
+      const t = j/steps;
+      out.push([
+        line[i][0] + (line[i+1][0]-line[i][0])*t,
+        line[i][1] + (line[i+1][1]-line[i][1])*t
+      ]);
+    }
+  }
+  return out;
+}
+
+function resampleLine(line,count){
+  if(!line || line.length<2){
+    return { points: line ? line.map(pt=>[pt[0],pt[1]]) : [], offsets: [0] };
+  }
+  const distances = cumulativeDistances(line);
+  const total = distances[distances.length-1] || 0;
+  if(total === 0){
+    return { points: line.map(pt=>[pt[0],pt[1]]), offsets: distances };
+  }
+  const targetCount = Math.max(2, clampPointCount(count));
+  const spacing = total / (targetCount - 1);
+  const points=[];
+  const offsets=[];
+  for(let i=0;i<targetCount;i++){
+    const target = i === targetCount-1 ? total : spacing*i;
+    points.push(interpolatePointAtDistance(line, distances, target));
+    offsets.push(target);
+  }
+  return { points, offsets };
+}
+
+function cumulativeDistances(line){
+  const out=[0];
+  let total=0;
+  for(let i=0;i<line.length-1;i++){
+    total += haversine(line[i], line[i+1]);
+    out.push(total);
+  }
+  return out;
+}
+
+function interpolatePointAtDistance(line, distances, target){
+  if(target <= 0) return [line[0][0], line[0][1]];
+  const total = distances[distances.length-1] || 0;
+  if(target >= total) return [line[line.length-1][0], line[line.length-1][1]];
+  let idx=0;
+  while(idx < distances.length-1 && distances[idx+1] < target){
+    idx++;
+  }
+  const segLen = distances[idx+1]-distances[idx];
+  if(segLen <= 0){
+    return [line[idx+1][0], line[idx+1][1]];
+  }
+  const t = (target - distances[idx]) / segLen;
+  return [
+    line[idx][0] + (line[idx+1][0]-line[idx][0])*t,
+    line[idx][1] + (line[idx+1][1]-line[idx][1])*t
+  ];
+}
+
+function sampleElevations(baseDistances, baseElevations, offsets){
+  if(!baseElevations || !baseElevations.length){
+    return offsets.map(()=>0);
+  }
+  return offsets.map(target => interpolateValueAtDistance(baseDistances, baseElevations, target));
+}
+
+function interpolateValueAtDistance(distances, values, target){
+  if(target <= 0) return values[0] || 0;
+  const total = distances[distances.length-1] || 0;
+  if(target >= total) return values[values.length-1] || 0;
+  let idx=0;
+  while(idx < distances.length-1 && distances[idx+1] < target){
+    idx++;
+  }
+  const segLen = distances[idx+1]-distances[idx];
+  if(segLen <= 0){
+    return values[idx+1] ?? values[idx] ?? 0;
+  }
+  const start = values[idx] ?? 0;
+  const end = values[idx+1] ?? start;
+  const t = (target - distances[idx]) / segLen;
+  return start + (end - start) * t;
+}
+
+function gaussianSmooth(arr,passes=1){
+  if(!Array.isArray(arr) || !arr.length) return [];
+  let out = arr.slice();
+  const kernel = [];
+  for(let i=-4;i<=4;i++){
+    kernel.push(Math.exp(-(i*i)/8));
+  }
+  const kernelSum = kernel.reduce((a,b)=>a+b,0);
+  for(let p=0;p<passes;p++){
+    const src = out.slice();
+    out = src.map((val, idx)=>{
+      let sum=0, weight=0;
+      for(let k=-4;k<=4;k++){
+        const pos = idx + k;
+        if(pos < 0 || pos >= src.length) continue;
+        const w = kernel[k+4];
+        sum += src[pos] * w;
+        weight += w;
+      }
+      const denom = weight || kernelSum;
+      return denom ? sum/denom : val;
+    });
+  }
+  return out;
+}
+
+function movingAverage(arr, window=7){
+  const size = Math.max(3, Math.floor(window));
+  const radius = Math.floor(size/2);
+  if(!Array.isArray(arr) || arr.length <= 2 || size < 3){
+    return Array.isArray(arr) ? arr.slice() : [];
+  }
+  const out = arr.map((_, idx)=>{
+    let sum = 0;
+    let count = 0;
+    for(let k=-radius;k<=radius;k++){
+      const pos = idx + k;
+      if(pos < 0 || pos >= arr.length) continue;
+      sum += arr[pos];
+      count += 1;
+    }
+    return count ? sum / count : arr[idx];
+  });
+  return out;
+}
+
+function elevationGain(elevations){
+  if(!Array.isArray(elevations) || elevations.length < 2) return 0;
+  let gain = 0;
+  for(let i=1;i<elevations.length;i++){
+    const delta = elevations[i] - elevations[i-1];
+    if(delta > 0) gain += delta;
+  }
+  return gain;
+}
+
+function smoothElevations(rawElevations, window=9){
+  const base = Array.isArray(rawElevations) ? rawElevations.slice() : [];
+  if(base.length < 2) return base;
+  const averaged = movingAverage(base, window);
+  const smoothed = gaussianSmooth(averaged, 2);
+  const rawGain = elevationGain(base);
+  const smoothGain = elevationGain(smoothed);
+  if(rawGain <= 0){
+    return smoothed;
+  }
+  const minGain = rawGain * 0.92;
+  if(smoothGain >= minGain){
+    return smoothed;
+  }
+  const denom = rawGain - smoothGain;
+  const blend = denom > 0 ? Math.min(1, (minGain - smoothGain) / denom) : 0;
+  return smoothed.map((val, idx)=> val + (base[idx] - val) * blend);
+}
+
+function gradeColor(g){
+  if(g>6) return '#ef4444';
+  if(g>2) return '#f97316';
+  if(g<-6) return '#3b82f6';
+  if(g<-2) return '#38bdf8';
+  return '#9ca3af';
+}
+
+updateStats();
+updateSegments();
+updateChart();
+updatePrimary();
+  renderWaypoints();
+  updatePointCountLabel();
+  initPanelReorder();
+  state.routeId = initialRouteId || null;
+  refreshExportState();
+if(state.routeId){
+  loadRouteFromLibrary(state.routeId);
+}else{
+  updateSaveIndicator();
+  refreshSaveButton();
+}
+
+function handleChartHover(evt){
+  if(!state.chart || !chartSeriesCache){
+    resetChartReadout();
+    return;
+  }
+  const points = state.chart.getElementsAtEventForMode(evt,'nearest',{axis:'x',intersect:false},false);
+  if(!points || !points.length){
+    resetChartReadout();
+    return;
+  }
+  const idx = points[0].index;
+  updateChartReadout(idx);
+}
+
+function updateChartReadout(idx){
+  if(!chartSeriesCache || !chartReadout) return;
+  const distUnit = state.units==='imperial' ? 'mi' : 'km';
+  const elevUnit = state.units==='imperial' ? 'ft' : 'm';
+  const distances = chartSeriesCache.distances;
+  const elevs = chartSeriesCache.values;
+  const grades = chartSeriesCache.grades;
+  const clampIdx = Math.max(0, Math.min(distances.length-1, idx));
+  const distVal = distances[clampIdx] ?? 0;
+  const elevVal = elevs[clampIdx] ?? 0;
+  const gradeVal = grades[clampIdx] ?? 0;
+  const distDisplay = (Math.round(distVal*10)/10).toFixed(1);
+  const elevDisplay = (Math.round(elevVal*10)/10).toFixed(1);
+  const gradeDisplay = gradeVal.toFixed(1);
+  chartReadout.textContent = `${distDisplay} ${distUnit} • ${elevDisplay} ${elevUnit} • grade ${gradeDisplay}%`;
+}
+
+function resetChartReadout(){
+  if(chartReadout){
+    chartReadout.textContent = chartSeriesCache ? 'Hover to scrub through the profile.' : chartReadoutDefault;
+  }
+}
+</script>
+</body>
+</html>

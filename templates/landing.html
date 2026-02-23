@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Choose Sport • Strava Tracker{% endblock %}
+{% block content %}
+
+<h1 class="text-4xl md:text-5xl font-extrabold tracking-tight mb-6">
+  Welcome — pick your sport
+</h1>
+<p class="text-neutral-400 mb-8">You can change it anytime.</p>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+  <a href="/sport/bike" class="group rounded-2xl border border-neutral-800 bg-neutral-900/60 p-6 hover:border-blue-500 hover:bg-neutral-900 transition">
+    <div class="text-2xl font-bold mb-2">Bike</div>
+    <p class="text-neutral-400">Road • Gravel • MTB</p>
+  </a>
+
+  <a href="/sport/run" class="group rounded-2xl border border-neutral-800 bg-neutral-900/60 p-6 hover:border-emerald-500 hover:bg-neutral-900 transition">
+    <div class="text-2xl font-bold mb-2">Run</div>
+    <p class="text-neutral-400">Road & trail</p>
+  </a>
+
+  <a href="/sport/hikewalk" class="group rounded-2xl border border-neutral-800 bg-neutral-900/60 p-6 hover:border-lime-500 hover:bg-neutral-900 transition">
+    <div class="text-2xl font-bold mb-2">Hike / Walk</div>
+    <p class="text-neutral-400">Trails and city walks</p>
+  </a>
+
+  <a href="/sport/swim" class="group rounded-2xl border border-neutral-800 bg-neutral-900/60 p-6 hover:border-cyan-500 hover:bg-neutral-900 transition">
+    <div class="text-2xl font-bold mb-2">Swim</div>
+    <p class="text-neutral-400">Open water & pool</p>
+  </a>
+
+  <a href="/sport/lift" class="group rounded-2xl border border-neutral-800 bg-neutral-900/60 p-6 hover:border-fuchsia-500 hover:bg-neutral-900 transition">
+    <div class="text-2xl font-bold mb-2">Lifting</div>
+    <p class="text-neutral-400">Strength & gym sessions</p>
+  </a>
+
+  <a href="/sport/total" class="group rounded-2xl border border-neutral-800 bg-neutral-900/60 p-6 hover:border-orange-500 hover:bg-neutral-900 transition">
+    <div class="text-2xl font-bold mb-2">Total Stats</div>
+    <p class="text-neutral-400">All sports combined</p>
+  </a>
+</div>
+{% endblock %}

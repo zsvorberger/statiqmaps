@@ -1,0 +1,82 @@
+{% macro render_route_cards(routes, export_formats, show_creator=True) %}
+  {% if routes %}
+  <div class="route-list">
+    {% for route in routes %}
+    <details class="route-card">
+      <summary>
+        <div class="summary-main">
+          <h3>{{ route.name or "Untitled Route" }}</h3>
+          <div class="summary-meta">
+            {% if show_creator %}
+            <span class="chipline">By {{ route.creator or "Unknown" }}</span>
+            {% endif %}
+            <span class="chipline">❤️ {{ route.favorites | length }}</span>
+          </div>
+        </div>
+        <div class="summary-metrics">
+          <span>{{ route.stats_display.distance_pretty }}</span>
+          <span>Gain {{ route.stats_display.climb_pretty }}</span>
+          <span>{{ route.stats_display.est_time_pretty }}</span>
+        </div>
+        <div class="summary-actions">
+          <a class="btn" href="{{ url_for('route_builder') }}?route_id={{ route.id }}">Edit</a>
+          <form method="GET" action="{{ url_for('export_route', route_id=route.id) }}">
+            <label class="sr-only" for="fmt-{{ route.id }}">Format</label>
+            <select name="fmt" id="fmt-{{ route.id }}">
+              {% for fmt in export_formats %}
+              <option value="{{ fmt }}">{{ fmt | upper }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn" type="submit">Download</button>
+          </form>
+          <form method="POST" action="{{ url_for('toggle_favorite', route_id=route.id) }}">
+            <button class="btn btn-muted" type="submit">
+              {% if session.get('username', 'Guest') in route.favorites %}
+              Unfavorite
+              {% else %}
+              Favorite
+              {% endif %}
+            </button>
+          </form>
+        </div>
+      </summary>
+      <div class="details-body">
+        <p class="route-notes">{{ route.description or "No notes added yet." }}</p>
+        <div class="stat-grid">
+          <div><span>Avg grade</span><strong>{{ route.stats.avg_grade | default(0) | round(1) }}%</strong></div>
+          <div><span>Max grade</span><strong>{{ route.stats.max_grade | default(0) | round(1) }}%</strong></div>
+          <div><span>Min grade</span><strong>{{ route.stats.min_grade | default(0) | round(1) }}%</strong></div>
+          <div><span>Descent</span><strong>{{ route.stats_display.descent_pretty }}</strong></div>
+        </div>
+        {% if route.stats.segments %}
+        <div class="segments-table">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Distance (km)</th>
+                <th>Grade</th>
+                <th>Gain (m)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for seg in route.stats.segments %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ (seg.length_m / 1000) | round(2) }}</td>
+                <td>{{ seg.grade | round(1) }}%</td>
+                <td>{{ seg.gain_m | round(0) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+    </details>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty-msg">No routes yet. Start something new in the Route Builder.</p>
+  {% endif %}
+{% endmacro %}

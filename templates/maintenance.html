@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+    {% include "_analytics.html" %}
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Maintenance Tracker</title>
+  <style>
+    :root { --bg:#111; --card:#1b1b1b; --muted:#9a9a9a; --line:#2a2a2a; --fg:#eaeaea; }
+    html,body{background:var(--bg); color:var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0;}
+    main{padding:20px; max-width:1300px; margin:0 auto;}
+    h1,h2,h3{margin:0 0 12px}
+    .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin:0 0 16px}
+    .row{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+    label{display:block; font-size:.9rem; margin:6px 0 4px; color:#bdbdbd}
+    input,select,textarea{width:100%; padding:8px; border-radius:10px; border:1px solid var(--line); background:#0f0f0f; color:var(--fg)}
+    button{padding:10px 14px; border-radius:10px; border:1px solid var(--line); background:#222; color:#fff; cursor:pointer}
+    button:hover{background:#2b2b2b}
+    table{width:100%; border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--line); padding:8px; text-align:left}
+    th{color:#cfcfcf; font-weight:600}
+    .right{text-align:right}
+    .small{font-size:.85rem}
+    .muted{color:var(--muted)}
+    .pill{display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid var(--line); font-size:.8rem}
+    .chip{font-size:.8rem; opacity:.85}
+    .status-active{color:#9cff8a}
+    .status-retired{color:#ff8a8a}
+    .tabs{display:flex; gap:8px; margin:0 0 12px}
+    .tab-btn{padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:#171717}
+    .tab-btn.active{background:#2a2a2a}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+    .tracker-card{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:16px}
+    .tracker-meta{display:flex;flex-direction:column;gap:4px}
+    .readonly-banner{margin:12px 0;padding:12px;border-radius:12px;border:1px solid #facc15;background:#3b2b05;color:#fef3c7}
+    .pill.warn{background:#4c1d1d;border-color:#f87171;color:#fecaca}
+    .share-table{width:100%;border-collapse:collapse;margin-top:12px}
+    .share-table th,.share-table td{border-bottom:1px solid var(--line);padding:6px;text-align:left}
+    body.read-only [data-requires-edit]{opacity:0.65;cursor:not-allowed}
+    details:not(.bike-card):not(.bike-detail){border:1px dashed var(--line); border-radius:10px; padding:8px 10px; background:#141414}
+    summary{cursor:pointer; user-select:none}
+    .kpi-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:16px}
+    .kpi-card{padding:14px; border-radius:14px; border:1px solid #2f2f2f; background:linear-gradient(135deg,#1f1f1f,#181818); display:flex; flex-direction:column; gap:6px}
+    .kpi-label{font-size:.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em}
+    .kpi-value{font-size:2rem; font-weight:600}
+    .kpi-sub{color:var(--muted); font-size:.85rem}
+    .cost-controls{display:flex; align-items:center; justify-content:space-between; margin:8px 0 16px}
+    .pill-btn{padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:#131313; color:#fff; cursor:pointer}
+    .pill-btn.active{background:#315c2b}
+    body:not(.show-costs) .cost-col{display:none}
+    body:not(.show-costs) .cost-chip{display:none}
+    body.show-costs .pill-btn[data-role=\"cost\"]::after{content:\" (visible)\"; font-size:.8rem; color:var(--muted)}
+    .list-plain{list-style:none; padding-left:0; margin:0}
+    .list-plain li{padding:6px 0; border-bottom:1px solid var(--line)}
+    .part-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px}
+    .part-card{border:1px solid var(--line); border-radius:14px; padding:14px; background:#161616; display:flex; flex-direction:column; gap:8px}
+    .part-card header{display:flex; justify-content:space-between; align-items:center; gap:8px}
+    .part-card .meta{font-size:.85rem; color:var(--muted)}
+    .chip-group{display:flex; gap:6px; flex-wrap:wrap}
+    .part-card.hidden{display:none!important}
+    .table-wrapper{overflow-x:auto}
+    .history-table{width:100%; border-collapse:collapse; font-size:.85rem}
+    .history-table th,.history-table td{border-bottom:1px solid var(--line); padding:4px 6px; text-align:left}
+    .filters{display:flex; gap:12px; flex-wrap:wrap}
+    .filters > *{flex:1 1 160px}
+    .watchlist{margin:0; padding-left:18px}
+    .preset-row{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0}
+    .preset-row select{flex:1 1 220px}
+    .preset-actions{display:flex; gap:8px; flex-wrap:wrap}
+    .bike-stack{display:flex; flex-direction:column; gap:12px}
+    .bike-card{border:1px solid var(--line); border-radius:16px; background:#121212}
+    .bike-card summary{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px; cursor:pointer}
+    .bike-card summary::-webkit-details-marker{display:none}
+    .bike-card summary h3{margin:0}
+    .bike-summary-pills{display:flex; gap:8px; flex-wrap:wrap; font-size:.85rem; color:var(--muted)}
+    .bike-overview{padding:0 16px 16px; border-top:1px solid var(--line)}
+    .bike-stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin:12px 0}
+    .bike-stats .stat{padding:12px; border:1px solid var(--line); border-radius:12px; background:#181818}
+    .bike-stats .label{font-size:.75rem; text-transform:uppercase; color:var(--muted); letter-spacing:.08em}
+    .bike-stats .value{font-size:1.3rem; font-weight:600}
+    .bike-detail{margin-top:10px; border:1px dashed var(--line); border-radius:12px; padding:10px 12px; background:#151515}
+    .bike-detail summary{padding:0; margin-bottom:8px; font-weight:600}
+    .bike-detail summary::-webkit-details-marker{display:none}
+    .bike-detail[open] summary::after{content:" (hide)"; font-weight:normal; color:var(--muted); font-size:.85rem}
+    .leaderboard{list-style:none; padding:0; margin:0}
+    .leaderboard li{display:flex; justify-content:space-between; gap:12px; border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; background:#131313}
+    .leaderboard .info{display:flex; flex-direction:column}
+    .progress{flex:1; display:flex; align-items:center; gap:10px}
+    .progress-bar{flex:1; height:6px; border-radius:999px; background:#2a2a2a; overflow:hidden}
+    .progress-bar span{display:block; height:100%; background:#3b82f6}
+    @media (max-width:700px){
+      .bike-card summary{flex-direction:column; align-items:flex-start}
+      .bike-summary-pills{width:100%}
+    }
+  </style>
+</head>
+<body class="{% if not tracker_access.can_edit %}read-only{% endif %}" data-can-edit="{{ 1 if tracker_access.can_edit else 0 }}">
+<main>
+  <div style="font-size:0.72rem;color:var(--muted);font-style:italic;margin:0 0 6px 0;">
+    Strava activity data used with athlete permission.
+  </div>
+  <h1>Maintenance Tracker</h1>
+
+  <div class="card tracker-card">
+    <div class="tracker-meta">
+      <div class="small muted">Viewing</div>
+      <h2 style="margin:0">{{ tracker_access.label }}</h2>
+      <div class="small muted">Owner: {{ tracker_access.owner_name }}</div>
+      <div class="chip {{ 'status-active' if tracker_access.can_edit else 'status-retired' }}">
+        {% if tracker_access.can_edit %}Editing enabled{% else %}Read only{% endif %}
+      </div>
+    </div>
+    {% if tracker_options|length > 1 %}
+    <div>
+      <label for="trackerSelect" class="small muted">Switch tracker</label>
+      <select id="trackerSelect" style="min-width:220px">
+        {% for opt in tracker_options %}
+          {% set val = opt.owner_user_id if opt.owner_user_id is not none else 'legacy' %}
+          {% set is_selected = (opt.owner_user_id == tracker_access.owner_user_id) or (opt.owner_user_id is none and tracker_access.owner_user_id is none) %}
+          <option value="{{ val }}" {% if is_selected %}selected{% endif %}>
+            {{ opt.label }}{% if not opt.can_edit %} (view only){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if not tracker_access.can_edit %}
+    <div class="readonly-banner">
+      You have read-only access to {{ tracker_access.owner_name }}'s tracker. Ask the owner for edit permission to make changes.
+    </div>
+  {% endif %}
+
+  {% if share_management_enabled %}
+    <div class="card">
+      <h2>Share your tracker</h2>
+      <form id="shareForm" data-requires-edit>
+        <label for="share_email">Friend's email</label>
+        <input id="share_email" type="email" placeholder="name@example.com" required/>
+        <label class="small muted" style="display:flex;align-items:center;gap:6px;margin-top:8px">
+          <input type="checkbox" id="share_can_edit" checked/>
+          Allow editing access
+        </label>
+        <button type="submit" data-requires-edit>Share tracker</button>
+      </form>
+      {% if share_records %}
+        <table class="share-table">
+          <thead>
+            <tr><th>User</th><th>Email</th><th>Access</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {% for entry in share_records %}
+              <tr>
+                <td>{{ entry.shared_username or entry.shared_email }}</td>
+                <td class="small muted">{{ entry.shared_email }}</td>
+                <td>{{ 'Edit' if entry.can_edit else 'Read only' }}</td>
+                <td>
+                  <button data-share-action="toggle"
+                          data-share-id="{{ entry.shared_with_user_id }}"
+                          data-share-edit="{{ 1 if entry.can_edit else 0 }}"
+                          data-requires-edit>
+                    {% if entry.can_edit %}Set read only{% else %}Allow edit{% endif %}
+                  </button>
+                  <button data-share-action="remove"
+                          data-share-id="{{ entry.shared_with_user_id }}"
+                          data-requires-edit>Remove</button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="muted small" style="margin-top:8px">No active shares yet.</div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="stats">Dashboard</button>
+    <button class="tab-btn" data-tab="parts">Parts</button>
+    <button class="tab-btn" data-tab="log">Log</button>
+    <button class="tab-btn" data-tab="notes">Notes</button>
+  </div>
+
+  <!-- ================== TAB: Stats ================== -->
+  <section id="tab-stats" class="tab-panel active">
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Active Parts</div>
+        <div class="kpi-value">{{ stats_summary.active_parts }}</div>
+        <div class="kpi-sub">of {{ stats_summary.total_parts }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Parts Spend</div>
+        <div class="kpi-value">${{ stats_summary.total_part_spend|round(2) }}</div>
+        <div class="kpi-sub">Avg {{ stats_summary.avg_part_price|round(2) }} each</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Log Spend</div>
+        <div class="kpi-value">${{ stats_summary.total_log_spend|round(2) }}</div>
+        <div class="kpi-sub">From maintenance events</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg Retired Lifespan</div>
+        <div class="kpi-value">
+          {% if stats_summary.avg_retired_lifespan_days %}
+            {{ stats_summary.avg_retired_lifespan_days }}d
+          {% else %}
+            —
+          {% endif %}
+        </div>
+        <div class="kpi-sub">Until retirement</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="card">
+        <h2>Add Part / Gear</h2>
+        <form id="addPartForm" data-requires-edit>
+          <label for="presetSelect">Quick Fill</label>
+          <div class="preset-row">
+            <select id="presetSelect">
+              <option value="">Select preset or past part…</option>
+            </select>
+            <button type="button" id="savePresetBtn">Save as preset</button>
+          </div>
+          <div class="small muted">Presets pre-fill name, type, price, and notes. Saved presets stay in this browser.</div>
+
+          <label for="bike_id">Bike</label>
+          <select id="bike_id" name="bike_id" required>
+            <option value="">Select bike…</option>
+            {% for b in bikes %}
+              <option value="{{ b.get('gear_id') or b.get('id') }}">
+                {{ b.get('name') or b.get('model_name') or b.get('nickname') or b.get('display_name') or ('Bike ' ~ loop.index) }}
+              </option>
+            {% endfor %}
+          </select>
+
+          <label for="name">Part Name</label>
+          <input id="name" name="name" required placeholder="e.g. Chain, Rear Tire, Brake Pads"/>
+
+          <label for="part_type">Part Type</label>
+          <input id="part_type" name="part_type" required placeholder="e.g. chain, tire, cassette"/>
+
+          <label for="price">Price (optional)</label>
+          <input id="price" name="price" type="number" step="0.01" min="0" placeholder="USD"/>
+
+          <label for="date_installed">Date Installed</label>
+          <input id="date_installed" name="date_installed" type="date" required/>
+
+          <label for="notes">Notes</label>
+          <textarea id="notes" name="notes" rows="2"></textarea>
+
+          <button type="submit" data-requires-edit>Add Part</button>
+        </form>
+        <div class="small muted" id="addPartHint" aria-live="polite"></div>
+        <div class="small muted">Wear is calculated from your activities after install date.</div>
+      </div>
+
+      <div class="card">
+        <h2>Wear Leaderboard</h2>
+        {% set max_distance = 0 %}
+        {% if longest_parts %}
+          {% set max_distance = longest_parts[0].wear.get('distance_m',0) %}
+          <ol class="leaderboard">
+            {% for part in (longest_parts[:10]|reverse) %}
+              {% set dist = part.wear.get('distance_m',0) %}
+              <li>
+                <div class="info">
+                  <strong>{{ part.name }}</strong>
+                  <span class="small muted">{{ part.bike_name }} · {{ part.part_type }}</span>
+                </div>
+                <div class="progress">
+                  <span>{{ (dist/1000)|round(1) }} km</span>
+                  <div class="progress-bar">
+                    <span style="width:{{ 0 if max_distance == 0 else ((dist / max_distance) * 100)|round(1) }}%"></span>
+                  </div>
+                </div>
+              </li>
+            {% endfor %}
+          </ol>
+          {% if longest_parts|length > 10 %}
+            <div class="muted small">Showing first 10 of {{ longest_parts|length }} tracked parts.</div>
+          {% endif %}
+        {% else %}
+          <div class="muted small">Add parts to start tracking wear.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="card">
+        <h2>Spend by Bike</h2>
+        {% if spend_by_bike %}
+          <ul class="list-plain">
+            {% for bike_name, amount in spend_by_bike[:6] %}
+              <li><strong>{{ bike_name }}</strong> — ${{ amount|round(2) }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="muted small">No priced parts yet.</div>
+        {% endif %}
+      </div>
+      <div class="card">
+        <h2>Part Types</h2>
+        {% if per_type_stats %}
+          <table>
+            <thead>
+              <tr><th>Type</th><th>Active</th><th>Total</th><th class="cost-col">Cost</th><th>Avg wear (mi)</th></tr>
+            </thead>
+            <tbody>
+              {% for row in per_type_stats %}
+                <tr>
+                  <td>{{ row.part_type }}</td>
+                  <td>{{ row.active }}</td>
+                  <td>{{ row.count }}</td>
+                  <td class="cost-col">${{ row.total_cost|round(2) }}</td>
+                  <td>{{ row.avg_wear_miles|round(1) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <div class="muted small">Add parts to build part-type stats.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Parts by Bike -->
+    <div class="card">
+      <div class="cost-controls">
+        <h2 style="margin:0">Parts by Bike</h2>
+        <button class="pill-btn" data-role="cost" id="toggleCosts">Toggle Cost Visibility</button>
+      </div>
+
+      {% if bike_cards %}
+        <div class="bike-stack">
+          {% for bike in bike_cards %}
+            <details class="bike-card" open>
+              <summary>
+                <div>
+                  <h3>{{ bike.name }}</h3>
+                  <div class="bike-summary-pills">
+                    <span>{{ bike.active_count }} active</span>
+                    <span>{{ bike.retired_count }} retired</span>
+                    <span>${{ bike.total_spend|round(2) }} total</span>
+                  </div>
+                </div>
+      <div class="small muted" style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:8px">
+        {% if bike.top_part %}
+          Top part: {{ bike.top_part.name }} · {{ (bike.top_part.wear.get('distance_m',0)/1000)|round(1) }} km
+        {% else %}
+          No tracked parts yet
+        {% endif %}
+        {% if tracker_access.can_edit %}
+          <button class="pill-btn" type="button"
+                  data-add-part-for-bike
+                  data-bike-id="{{ bike.bike_id }}"
+                  data-bike-name="{{ bike.name|e }}">
+            Add part to {{ bike.name }}
+          </button>
+        {% endif %}
+      </div>
+              </summary>
+              <div class="bike-overview">
+                <div class="bike-stats">
+                  <div class="stat">
+                    <div class="label">Active Parts</div>
+                    <div class="value">{{ bike.active_count }}</div>
+                  </div>
+                  <div class="stat">
+                    <div class="label">Retired Parts</div>
+                    <div class="value">{{ bike.retired_count }}</div>
+                  </div>
+                  <div class="stat">
+                    <div class="label">Total Spend</div>
+                    <div class="value">${{ bike.total_spend|round(2) }}</div>
+                  </div>
+                  <div class="stat">
+                    <div class="label">Combined Wear</div>
+                    <div class="value">{{ bike.total_wear_km|round(1) }} km</div>
+                  </div>
+                </div>
+                {% if bike.top_part %}
+                  <div class="small muted">Longest-running on this bike: {{ bike.top_part.name }} ({{ (bike.top_part.wear.get('distance_m',0)/1000)|round(1) }} km, {{ bike.top_part.part_type }})</div>
+                {% endif %}
+                <details class="bike-detail" open>
+                  <summary>Expand full part tables</summary>
+                  <div>
+                    <h4 style="margin:8px 0">Active parts</h4>
+                    {% if bike.active_parts %}
+                      <div class="table-wrapper">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Part</th><th>Type</th><th>Installed</th><th>Status</th>
+                              <th class="right">Wear Distance</th><th class="right">Wear Time</th><th class="right">Wear Elev.</th>
+                              <th class="cost-col right">Price</th><th class="cost-col right">$/mi</th>
+                              <th>Notes</th><th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for p in bike.active_parts %}
+                              {% set wear = p.wear %}
+                              <tr>
+                                <td>{{ p.name }}</td>
+                                <td><span class="pill">{{ p.part_type }}</span></td>
+                                <td class="small muted">{{ p.date_installed }}</td>
+                                <td class="chip status-active">active</td>
+                                <td class="right">{{ (wear.get('distance_m',0)/1000)|round(1) }} km</td>
+                                <td class="right">{{ (wear.get('moving_time_s',0)/3600)|round(1) }} h</td>
+                                <td class="right">{{ wear.get('elev_m',0)|round(0) }} m</td>
+                                <td class="cost-col right">${{ p.price|round(2) }}</td>
+                                <td class="cost-col right">
+                                  {% if p.per_mile_cost %}
+                                    ${{ p.per_mile_cost|round(2) }}
+                                  {% else %}
+                                    —
+                                  {% endif %}
+                                </td>
+                                <td class="small muted">{{ p.notes or '' }}</td>
+                                <td><button onclick="toggleRetire('{{ p.part_id }}','retired')" data-requires-edit>Retire</button></td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+                    {% else %}
+                      <div class="muted small">No active parts</div>
+                    {% endif %}
+
+                    <details {% if bike.retired_parts|length==0 %}disabled{% endif %}>
+                      <summary>Retired parts ({{ bike.retired_parts|length }})</summary>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Part</th><th>Type</th><th>Installed</th><th>Status</th>
+                            <th class="right">Wear Distance</th><th class="right">Wear Time</th><th class="right">Wear Elev.</th>
+                            <th class="cost-col right">Price</th><th class="cost-col right">$/mi</th>
+                            <th>Notes</th><th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for p in bike.retired_parts %}
+                            {% set wear = p.wear %}
+                            <tr style="opacity:.75">
+                              <td>{{ p.name }}</td>
+                              <td><span class="pill">{{ p.part_type }}</span></td>
+                              <td class="small muted">{{ p.date_installed }}</td>
+                              <td class="chip status-retired">retired{% if p.retired_at %} — {{ p.retired_at }}{% endif %}</td>
+                              <td class="right">{{ (wear.get('distance_m',0)/1000)|round(1) }} km</td>
+                              <td class="right">{{ (wear.get('moving_time_s',0)/3600)|round(1) }} h</td>
+                              <td class="right">{{ wear.get('elev_m',0)|round(0) }} m</td>
+                              <td class="cost-col right">${{ p.price|round(2) }}</td>
+                              <td class="cost-col right">
+                                {% if p.per_mile_cost %}
+                                  ${{ p.per_mile_cost|round(2) }}
+                                {% else %}
+                                  —
+                                {% endif %}
+                              </td>
+                              <td class="small muted">{{ p.notes or '' }}</td>
+                              <td><button onclick="toggleRetire('{{ p.part_id }}','active')" data-requires-edit>Reactivate</button></td>
+                            </tr>
+                          {% endfor %}
+                          {% if bike.retired_parts|length==0 %}
+                            <tr><td colspan="10" class="muted">No retired parts</td></tr>
+                          {% endif %}
+                        </tbody>
+                      </table>
+                    </details>
+                  </div>
+                </details>
+              </div>
+            </details>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="muted small">No bikes found.</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- ================== TAB: Parts ================== -->
+  <section id="tab-parts" class="tab-panel">
+    <div class="card">
+      <h2>Parts Catalog</h2>
+      <div class="filters">
+        <input id="partSearch" placeholder="Search part or bike…"/>
+        <select id="typeFilter">
+          <option value="">All types</option>
+          {% for row in per_type_stats %}
+            <option value="{{ row.part_type|lower }}">{{ row.part_type }}</option>
+          {% endfor %}
+        </select>
+        <select id="statusFilter">
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="retired">Retired</option>
+        </select>
+      </div>
+      <div class="part-grid" id="partsCatalog">
+        {% for p in parts_enriched %}
+          <div class="part-card"
+               data-name="{{ (p.name or '')|lower }}"
+               data-type="{{ (p.part_type or 'other')|lower }}"
+               data-status="{{ p.status|lower }}"
+               data-bike="{{ (p.bike_name or '')|lower }}">
+            <header>
+              <div>
+                <strong>{{ p.name }}</strong>
+                <div class="meta">{{ p.bike_name }}</div>
+              </div>
+              <span class="pill">{{ p.status }}</span>
+            </header>
+            <div class="chip-group">
+              <span class="pill">{{ p.part_type }}</span>
+              <span class="pill">{{ (p.wear.get('distance_m',0)/1000)|round(1) }} km</span>
+              <span class="pill cost-chip">${{ p.price|round(2) }}</span>
+            </div>
+            <div class="small muted">
+              Installed {{ p.date_installed }}{% if p.retired_at %} · retired {{ p.retired_at }}{% endif %}
+            </div>
+            {% if p.last_event %}
+              <div class="small">Last log: {{ p.last_event.date }} — {{ p.last_event.action }}</div>
+            {% endif %}
+            {% if p.history_entries %}
+              <details>
+                <summary>History</summary>
+                <table class="history-table">
+                  <thead><tr><th>Bike</th><th>From</th><th>To</th><th>Days</th></tr></thead>
+                  <tbody>
+                    {% for h in p.history_entries %}
+                      <tr>
+                        <td>{{ h.bike_name }}</td>
+                        <td>{{ h.installed_at or '—' }}</td>
+                        <td>{{ h.removed_at or 'present' }}</td>
+                        <td>{{ h.duration_days if h.duration_days is not none else '—' }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </details>
+            {% endif %}
+            {% if p.logs %}
+              <details>
+                <summary>Recent maintenance</summary>
+                <ul class="list-plain small">
+                  {% for log in p.logs[:3] %}
+                    <li>{{ log.date }} — {{ log.action }}{% if log.cost %} (${{ log.cost|round(2) }}){% endif %}</li>
+                  {% endfor %}
+                </ul>
+              </details>
+            {% endif %}
+          </div>
+        {% endfor %}
+        {% if parts_enriched|length == 0 %}
+          <div class="muted">No parts yet. Add a part to populate the catalog.</div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ================== TAB: Log ================== -->
+  <section id="tab-log" class="tab-panel">
+    <div class="card">
+      <h2>Log Maintenance Event</h2>
+      <form id="logEventForm" data-requires-edit>
+        <label for="part_id">Part</label>
+        <select id="part_id" name="part_id" required>
+          <option value="">Select part…</option>
+          {% for p in parts %}
+            <option value="{{ p.part_id }}">{{ p.name }} — {{ p.part_type }}</option>
+          {% endfor %}
+        </select>
+
+        <label for="action">Action</label>
+        <input id="action" name="action" required/>
+
+        <label for="date">Date</label>
+        <input id="date" name="date" type="date" required/>
+
+        <label for="cost">Cost (optional)</label>
+        <input id="cost" name="cost" type="number" step="0.01"/>
+
+        <label for="event_notes">Notes</label>
+        <textarea id="event_notes" name="event_notes"></textarea>
+
+        <button type="submit" data-requires-edit>Add Log</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ================== TAB: Notes ================== -->
+  <section id="tab-notes" class="tab-panel">
+    <div class="card">
+      <h2>Custom Notes</h2>
+      <textarea id="custom_note_text" rows="3" placeholder="Write anything…"></textarea>
+      <div><button onclick="addCustomNote()" data-requires-edit>+ Add Custom Note</button></div>
+      {% if custom_notes %}
+        <ul class="small" style="margin-top:10px">
+          {% for n in custom_notes|sort(attribute='date', reverse=True) %}
+            <li><span class="muted">{{ n.date }}</span> — {{ n.text }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="muted small">No custom notes yet.</div>
+      {% endif %}
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h2>Notes by Part</h2>
+      {% for p in parts %}
+        <div class="card" style="padding:12px; margin:8px 0">
+          <strong>{{ p.name }}</strong>
+          <textarea id="notes_{{ p.part_id }}" rows="3">{{ p.notes or '' }}</textarea>
+          <button onclick="saveNotes('{{ p.part_id }}','notes_{{ p.part_id }}')" data-requires-edit>Save</button>
+        </div>
+      {% endfor %}
+      {% if parts|length == 0 %}
+        <div class="muted">No parts yet. Add a part first.</div>
+      {% endif %}
+    </div>
+  </section>
+</main>
+
+<script>
+const partTemplates = {{ part_templates | tojson }};
+const addPartForm = document.getElementById("addPartForm");
+const trackerSelect = document.getElementById("trackerSelect");
+const shareForm = document.getElementById("shareForm");
+const CAN_EDIT = document.body.dataset.canEdit === "1";
+const SELECT_TRACKER_URL = "{{ url_for('maintenance.maintenance_select_tracker') }}";
+const SHARE_SAVE_URL = "{{ url_for('maintenance.maintenance_share_save') }}";
+const SHARE_REMOVE_URL = "{{ url_for('maintenance.maintenance_share_remove') }}";
+const addPartHint = document.getElementById("addPartHint");
+let addPartHintTimeout;
+
+function alertReadOnly(){
+  alert("This tracker is currently read-only. Ask the owner for edit access.");
+}
+function guardEdit(e){
+  if (CAN_EDIT) return false;
+  if (e) e.preventDefault();
+  alertReadOnly();
+  return true;
+}
+
+function setAddPartHint(message){
+  if (!addPartHint) return;
+  if (addPartHintTimeout){
+    clearTimeout(addPartHintTimeout);
+    addPartHintTimeout = undefined;
+  }
+  addPartHint.textContent = message || "";
+  if (message){
+    addPartHintTimeout = setTimeout(()=>{ addPartHint.textContent = ""; }, 3500);
+  }
+}
+
+function prepareAddPartForBike(bikeId, bikeName){
+  if (!addPartForm) return;
+  const select = addPartForm.bike_id;
+  const option = select?.querySelector(`option[value="${bikeId}"]`);
+  if (option){
+    select.value = bikeId;
+  }
+  setAddPartHint(`Preparing to add a part for ${bikeName || "this bike"}.`);
+  addPartForm.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (addPartForm.name){
+    addPartForm.name.focus();
+  }
+}
+
+document.querySelectorAll("[data-add-part-for-bike]").forEach(btn=>{
+  btn.addEventListener("click", (e)=>{
+    e.preventDefault();
+    if (!CAN_EDIT){
+      alertReadOnly();
+      return;
+    }
+    prepareAddPartForBike(btn.dataset.bikeId, btn.dataset.bikeName);
+  });
+});
+
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+if (trackerSelect){
+  trackerSelect.addEventListener('change', async ()=>{
+    const ownerId = trackerSelect.value;
+    try{
+      const res = await fetch(SELECT_TRACKER_URL, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ owner_user_id: ownerId })
+      });
+      const data = await res.json();
+      if (data.ok){
+        location.reload();
+      }else{
+        alert(data.error || "Unable to switch tracker.");
+      }
+    }catch(err){
+      console.error(err);
+      alert("Unable to switch tracker.");
+    }
+  });
+}
+
+// Preset helpers
+const PRESET_KEY = "maintenance_presets_v1";
+const presetSelect = document.getElementById("presetSelect");
+const savePresetBtn = document.getElementById("savePresetBtn");
+
+function loadSavedPresets(){
+  try{
+    const raw = localStorage.getItem(PRESET_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){
+    console.warn("Failed to parse presets", e);
+    return [];
+  }
+}
+function storePresets(list){
+  try{
+    localStorage.setItem(PRESET_KEY, JSON.stringify(list));
+  }catch(e){
+    console.warn("Failed to persist presets", e);
+  }
+}
+function renderPresetOptions(){
+  if (!presetSelect) return;
+  const saved = loadSavedPresets();
+  presetSelect.innerHTML = '<option value="">Select preset or past part…</option>';
+  if (saved.length){
+    const savedGroup = document.createElement("optgroup");
+    savedGroup.label = "Saved presets";
+    saved.forEach((preset, idx)=>{
+      const opt = document.createElement("option");
+      const label = preset.label || preset.name || `Preset ${idx + 1}`;
+      opt.value = `saved:${idx}`;
+      opt.textContent = `${label} (${preset.part_type || "—"})`;
+      savedGroup.appendChild(opt);
+    });
+    presetSelect.appendChild(savedGroup);
+  }
+  if (Array.isArray(partTemplates) && partTemplates.length){
+    const recentGroup = document.createElement("optgroup");
+    recentGroup.label = "Recent parts";
+    partTemplates.forEach((preset, idx)=>{
+      const opt = document.createElement("option");
+      opt.value = `recent:${idx}`;
+      opt.textContent = `${preset.name} (${preset.part_type})`;
+      recentGroup.appendChild(opt);
+    });
+    presetSelect.appendChild(recentGroup);
+  }
+}
+function presetFromValue(value){
+  if (!value) return null;
+  const [kind, indexStr] = value.split(":");
+  const idx = Number(indexStr);
+  if (!Number.isFinite(idx)) return null;
+  if (kind === "saved"){
+    return loadSavedPresets()[idx] || null;
+  }
+  if (kind === "recent"){
+    return (Array.isArray(partTemplates) && partTemplates[idx]) || null;
+  }
+  return null;
+}
+function applyPreset(preset){
+  if (!preset || !addPartForm) return;
+  if (preset.name) addPartForm.name.value = preset.name;
+  if (preset.part_type) addPartForm.part_type.value = preset.part_type;
+  if (preset.price !== undefined && preset.price !== null){
+    addPartForm.price.value = preset.price === "" ? "" : preset.price;
+  }
+  if (preset.notes !== undefined) addPartForm.notes.value = preset.notes;
+  if (preset.bike_id){
+    const option = addPartForm.bike_id.querySelector(`option[value="${preset.bike_id}"]`);
+    if (option) addPartForm.bike_id.value = preset.bike_id;
+  }
+}
+if (presetSelect){
+  renderPresetOptions();
+  presetSelect.addEventListener("change", ()=>{
+    const preset = presetFromValue(presetSelect.value);
+    if (preset){
+      applyPreset(preset);
+    }
+  });
+}
+if (savePresetBtn && addPartForm){
+  savePresetBtn.addEventListener("click", ()=>{
+    if (!addPartForm.name.value || !addPartForm.part_type.value){
+      alert("Fill Name and Part Type before saving a preset.");
+      return;
+    }
+    const defaultLabel = addPartForm.name.value || "Preset";
+    const label = prompt("Preset name", defaultLabel);
+    if (!label) return;
+    const preset = {
+      label: label.trim(),
+      name: addPartForm.name.value,
+      part_type: addPartForm.part_type.value,
+      price: addPartForm.price.value ? Number(addPartForm.price.value) : "",
+      notes: addPartForm.notes.value,
+      bike_id: addPartForm.bike_id.value || "",
+    };
+    const saved = loadSavedPresets();
+    const existingIdx = saved.findIndex(p => p.label === preset.label);
+    if (existingIdx >= 0){
+      saved[existingIdx] = preset;
+    }else{
+      saved.push(preset);
+    }
+    storePresets(saved);
+    renderPresetOptions();
+    alert("Preset saved");
+  });
+}
+
+// Add Part (debounced)
+addPartForm?.addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  if (guardEdit(e)) return;
+  const form = e.currentTarget;
+  const btn = form.querySelector('button[type="submit"]');
+  if (btn.disabled) return;
+  btn.disabled = true; btn.textContent = "Adding…";
+  try {
+    const payload = {
+      bike_id: form.bike_id.value,
+      name: form.name.value,
+      part_type: form.part_type.value,
+      price: form.price.value || 0,
+      date_installed: form.date_installed.value,
+      notes: form.notes.value
+    };
+    const res = await fetch("{{ url_for('maintenance.maintenance_add_item') }}", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.ok) location.reload(); else alert(data.error || "Failed");
+  } finally {
+    btn.disabled = false; btn.textContent = "Add Part";
+  }
+});
+
+// Log Event
+const logEventForm = document.querySelector("#logEventForm");
+logEventForm?.addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  if (guardEdit(e)) return;
+  const f = e.currentTarget;
+  const payload = {
+    part_id: f.part_id.value,
+    action: f.action.value,
+    date: f.date.value,
+    cost: f.cost.value,
+    notes: f.event_notes.value
+  };
+  const res = await fetch("{{ url_for('maintenance.maintenance_log_event') }}", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (data.ok) location.reload(); else alert(data.error || "Failed");
+});
+
+// Retire/Reactivate
+async function toggleRetire(partId, nextStatus){
+  if (guardEdit()) return;
+  let retired_at = "";
+  let reinstalled_at = "";
+  if (nextStatus === "retired") {
+    retired_at = prompt("Retire date (YYYY-MM-DD):","") || "";
+  } else {
+    reinstalled_at = prompt("Reinstall date (YYYY-MM-DD):", new Date().toISOString().slice(0,10)) || "";
+  }
+  const res = await fetch("{{ url_for('maintenance.maintenance_retire_part') }}", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ part_id: partId, status: nextStatus, retired_at, reinstalled_at })
+  });
+  const data = await res.json().catch(()=>({ok:false}));
+  if (data.ok) location.reload(); else alert(data.error || "Update failed");
+}
+
+// Save notes by part
+async function saveNotes(partId, textareaId){
+  if (guardEdit()) return;
+  const notes = document.getElementById(textareaId).value;
+  const res = await fetch("{{ url_for('maintenance.maintenance_update_part') }}", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ part_id: partId, notes })
+  });
+  const data = await res.json().catch(()=>({ok:false}));
+  if (data.ok) alert("Saved"); else alert(data.error || "Failed");
+}
+
+// Add custom note
+async function addCustomNote(){
+  if (guardEdit()) return;
+  const text = document.getElementById("custom_note_text").value.trim();
+  if (!text){ alert("Type a note first"); return; }
+  const res = await fetch("{{ url_for('maintenance.maintenance_add_note') }}", {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ text })
+  });
+  const data = await res.json().catch(()=>({ok:false}));
+  if (data.ok) location.reload(); else alert(data.error || "Failed to add");
+}
+
+// Cost visibility toggle
+const costToggle = document.getElementById("toggleCosts");
+function syncCostToggle(){
+  if (!costToggle) return;
+  costToggle.classList.toggle("active", document.body.classList.contains("show-costs"));
+}
+if (costToggle){
+  costToggle.addEventListener("click", ()=>{
+    document.body.classList.toggle("show-costs");
+    syncCostToggle();
+  });
+  syncCostToggle();
+}
+
+// Parts catalog filters
+const catalogEl = document.getElementById("partsCatalog");
+if (catalogEl){
+  const searchEl = document.getElementById("partSearch");
+  const typeEl = document.getElementById("typeFilter");
+  const statusEl = document.getElementById("statusFilter");
+  const cards = Array.from(catalogEl.querySelectorAll(".part-card"));
+
+  const applyFilters = ()=>{
+    const term = ((searchEl && searchEl.value) || "").toLowerCase();
+    const type = ((typeEl && typeEl.value) || "").toLowerCase();
+    const status = ((statusEl && statusEl.value) || "").toLowerCase();
+    cards.forEach(card=>{
+      const name = card.dataset.name || "";
+      const bike = card.dataset.bike || "";
+      const matchesTerm = !term || name.includes(term) || bike.includes(term);
+      const matchesType = !type || (card.dataset.type || "") === type;
+      const matchesStatus = !status || (card.dataset.status || "") === status;
+      const visible = matchesTerm && matchesType && matchesStatus;
+      card.classList.toggle("hidden", !visible);
+    });
+  };
+
+  if (searchEl){
+    searchEl.addEventListener("input", applyFilters);
+  }
+  if (typeEl){
+    typeEl.addEventListener("change", applyFilters);
+  }
+  if (statusEl){
+    statusEl.addEventListener("change", applyFilters);
+  }
+  applyFilters();
+}
+
+if (shareForm){
+  shareForm.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    if (guardEdit(e)) return;
+    const email = document.getElementById("share_email").value.trim();
+    const canEdit = document.getElementById("share_can_edit").checked;
+    const res = await fetch(SHARE_SAVE_URL, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ email, can_edit: canEdit })
+    });
+    const data = await res.json().catch(()=>({ok:false}));
+    if (data.ok){
+      location.reload();
+    }else{
+      alert(data.error || "Unable to share tracker.");
+    }
+  });
+}
+
+document.querySelectorAll("[data-share-action]").forEach(btn=>{
+  btn.addEventListener("click", async ()=>{
+    if (guardEdit()) return;
+    const action = btn.dataset.shareAction;
+    const sharedId = btn.dataset.shareId;
+    if (!sharedId) return;
+    if (action === "remove"){
+      if (!confirm("Stop sharing with this user?")) return;
+      const res = await fetch(SHARE_REMOVE_URL, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ shared_with_user_id: sharedId })
+      });
+      const data = await res.json().catch(()=>({ok:false}));
+      if (data.ok) location.reload(); else alert(data.error || "Failed to remove share.");
+    }else if (action === "toggle"){
+      const nextEdit = btn.dataset.shareEdit !== "1";
+      const res = await fetch(SHARE_SAVE_URL, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ shared_with_user_id: sharedId, can_edit: nextEdit })
+      });
+      const data = await res.json().catch(()=>({ok:false}));
+      if (data.ok) location.reload(); else alert(data.error || "Failed to update access.");
+    }
+  });
+});
+</script>
+</body>
+</html>

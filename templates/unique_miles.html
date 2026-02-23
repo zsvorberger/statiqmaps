@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+    {% include "_analytics.html" %}
+  <title>Unique Miles</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter/400.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter/600.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      color-scheme:dark;
+      --bg:#050914;
+      --panel:#0f172a;
+      --panel-soft:#131d33;
+      --border:rgba(255,255,255,.08);
+      --text:#f8fafc;
+      --muted:#94a3b8;
+      --accent:#22d3ee;
+      --accent-strong:#0ea5e9;
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      background:radial-gradient(circle at top,#0f172a 0%,#030711 65%);
+      color:var(--text);
+      min-height:100vh;
+    }
+    .page{max-width:1200px;margin:0 auto;padding:30px 22px 80px;display:flex;flex-direction:column;gap:22px;}
+    header.hero{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;}
+    .hero h1{margin:0;font-size:2.3rem;}
+    .hero p{margin:6px 0 0;color:var(--muted);max-width:620px;}
+    .controls{margin-left:auto;min-width:260px;background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:16px;box-shadow:0 15px 30px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:12px;}
+    .controls label{font-size:.8rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);}
+    .controls input,.controls select{width:100%;padding:8px 10px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);}
+    .chip-group{display:flex;flex-wrap:wrap;gap:8px;}
+    .chip{border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text);padding:6px 12px;border-radius:999px;font-size:.85rem;cursor:pointer;}
+    .chip.active{background:var(--accent);border:none;color:#031423;}
+    button.apply{border:none;border-radius:14px;padding:10px;background:var(--accent-strong);color:#02142b;font-weight:600;cursor:pointer;font-size:.95rem;}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:0 20px 40px rgba(0,0,0,.45);}
+    .card h3{margin:0 0 6px;font-size:1rem;}
+    .stat-value{font-size:1.8rem;font-weight:600;margin:4px 0;}
+    .stat-muted{color:var(--muted);font-size:.85rem;}
+    .range-wrapper{display:grid;grid-template-columns:1.1fr 0.9fr;gap:18px;}
+    .range-list{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
+    .ride-item{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--border);}
+    .ride-item small{color:var(--muted);}
+    .progress{height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;}
+    .progress span{display:block;height:100%;background:var(--accent);}
+    .surface-highlights{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;}
+    .surface-pill{flex:1 1 150px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:16px;padding:10px 14px;display:flex;flex-direction:column;gap:2px;}
+    .surface-pill strong{font-size:1.3rem;color:#f8fafc;}
+    .surface-pill span{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+    .surface-note{color:var(--muted);font-size:.85rem;margin:6px 0 12px;}
+    table{width:100%;border-collapse:collapse;font-size:.88rem;}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.05);text-align:left;}
+    th{color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;}
+    .chart-card{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:18px;box-shadow:0 20px 45px rgba(0,0,0,.5);}
+    .chart-wrapper{height:300px;}
+    .muted{color:var(--muted);font-style:italic;}
+    @media(max-width:1000px){.range-wrapper{grid-template-columns:1fr;}}
+    @media(max-width:720px){header.hero{flex-direction:column;}.controls{width:100%;margin-left:0;}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div>
+        <div style="font-size:0.72rem;color:var(--muted);font-style:italic;margin-bottom:6px;">
+          Strava activity data used with athlete permission.
+        </div>
+        <h1>Unique Miles</h1>
+        <p>Track how much completely new ground you cover. Filter by time window or bike, and see how those miles split between your road setups and off-road machines.</p>
+        <p style="margin-top:10px;">
+          <a href="{{ url_for('heatmaps') }}" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;padding:6px 14px;border-radius:999px;border:1px solid var(--border);color:var(--text);font-size:.85rem;">
+            Jump to interactive heatmaps →
+          </a>
+        </p>
+      </div>
+      <div class="controls">
+        <div>
+          <label>Units</label>
+          <div class="chip-group" id="unitButtons">
+            <button class="chip active" data-units="imperial">Miles</button>
+            <button class="chip" data-units="metric">Kilometers</button>
+          </div>
+        </div>
+        <div>
+          <label>Quick range</label>
+          <div class="chip-group" id="presetButtons">
+            <button class="chip" data-preset="30d">30d</button>
+            <button class="chip" data-preset="90d">90d</button>
+            <button class="chip" data-preset="ytd">YTD</button>
+            <button class="chip" data-preset="all">Lifetime</button>
+          </div>
+        </div>
+        <div>
+          <label>Start date</label>
+          <input type="date" id="startInput">
+        </div>
+        <div>
+          <label>End date</label>
+          <input type="date" id="endInput">
+        </div>
+        <div>
+          <label>Bike</label>
+          <select id="bikeSelect">
+            <option value="all">All bikes</option>
+            {% for bid, name in bikes %}
+              <option value="{{ bid }}">{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="apply" id="applyBtn">Apply filters</button>
+      </div>
+    </header>
+
+    <section class="grid" id="lifetimeGrid">
+      <div class="card">
+        <div class="stat-muted">Lifetime unique miles</div>
+        <div class="stat-value" id="lifeUnique">—</div>
+        <div class="stat-muted">Generated: <span id="lifeGenerated">—</span></div>
+      </div>
+      <div class="card">
+        <div class="stat-muted">Total distance logged</div>
+        <div class="stat-value" id="lifeTotal">—</div>
+        <div class="stat-muted">Repeated miles <span id="lifeRepeated">—</span></div>
+      </div>
+      <div class="card">
+        <div class="stat-muted">Exploration %</div>
+        <div class="stat-value" id="lifeExploration">—</div>
+        <div class="stat-muted">Repeatability score <span id="lifeRepeatability">—</span></div>
+      </div>
+    </section>
+
+    <section class="grid" id="lifetimeExtra">
+      <div class="card">
+        <div class="stat-muted">Unique hex cells ridden</div>
+        <div class="stat-value" id="lifeCells">—</div>
+        <div class="stat-muted">Hex resolution 11</div>
+      </div>
+      <div class="card">
+        <div class="stat-muted">Best month for new miles</div>
+        <div class="stat-value" id="lifeBestMonth">—</div>
+        <div class="stat-muted" id="lifeBestMonthDetail">—</div>
+      </div>
+      <div class="card">
+        <div class="stat-muted">Top unique ride</div>
+        <div class="stat-value" id="lifeBestRide">—</div>
+        <div class="stat-muted" id="lifeBestRideDetail">—</div>
+      </div>
+    </section>
+
+    <section class="range-wrapper">
+      <div class="card">
+        <h3>Range summary</h3>
+        <div class="stat-muted" id="rangeLabel">Select a window</div>
+        <div class="stat-value" id="rangeMiles">—</div>
+        <div class="stat-muted">On-road vs off-road</div>
+        <div class="progress">
+          <span id="onRoadBar" style="width:0%"></span>
+        </div>
+        <div class="stat-muted" id="onOffLabels">—</div>
+        <div class="surface-highlights">
+          <div class="surface-pill">
+            <strong id="surfaceRoadPct">—</strong>
+            <span>On-road share</span>
+          </div>
+          <div class="surface-pill">
+            <strong id="surfaceOffPct">—</strong>
+            <span>Off-road share</span>
+          </div>
+        </div>
+        <p class="surface-note" id="surfaceNarrative">We’ll describe this split once your stats load.</p>
+        <div class="grid" style="margin-top:12px;">
+          <div><div class="stat-muted">Unique cells</div><div class="stat-value" id="rangeCells">—</div></div>
+          <div><div class="stat-muted">Rides contributing</div><div class="stat-value" id="rangeRideCount">—</div></div>
+          <div><div class="stat-muted">Avg miles / ride</div><div class="stat-value" id="rangeAvgRide">—</div></div>
+          <div><div class="stat-muted">Avg miles / active day</div><div class="stat-value" id="rangeAvgDay">—</div></div>
+          <div><div class="stat-muted">Rest days in span</div><div class="stat-value" id="rangeRestDays">—</div></div>
+        </div>
+        <div class="grid" style="margin-top:12px;">
+          <div>
+            <div class="stat-muted">Best day</div>
+            <div class="stat-value" id="rangeBestDay">—</div>
+            <div class="stat-muted" id="rangeBestDayLabel">—</div>
+          </div>
+          <div>
+            <div class="stat-muted">Best week</div>
+            <div class="stat-value" id="rangeBestWeek">—</div>
+            <div class="stat-muted" id="rangeBestWeekLabel">—</div>
+          </div>
+          <div>
+            <div class="stat-muted">Unique cells / ride</div>
+            <div class="stat-value" id="rangeCellsPerRide">—</div>
+          </div>
+        </div>
+        <h4 style="margin:20px 0 6px">Top rides in this window</h4>
+        <div class="range-list" id="topRides"><div class="muted">No rides yet.</div></div>
+      </div>
+      <div class="card">
+        <h3>By bike</h3>
+        <div class="table-wrapper" style="max-height:320px;overflow:auto;">
+          <table>
+            <thead>
+              <tr><th>Bike</th><th>Type</th><th>Unique miles</th><th>Share</th></tr>
+            </thead>
+            <tbody id="bikeTable"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="chart-card">
+      <h3>Lifetime trend</h3>
+      <div class="chart-wrapper">
+        <canvas id="yearChart"></canvas>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    const startInput = document.getElementById('startInput');
+    const endInput = document.getElementById('endInput');
+    const bikeSelect = document.getElementById('bikeSelect');
+    const applyBtn = document.getElementById('applyBtn');
+    const presetButtons = document.querySelectorAll('[data-preset]');
+    const unitButtons = document.querySelectorAll('[data-units]');
+    let currentUnits = 'imperial';
+    let yearChart = null;
+
+    function setPreset(preset){
+      const today = new Date();
+      if(preset === 'all'){
+        startInput.value = '';
+        endInput.value = '';
+        return;
+      }
+      if(preset === 'ytd'){
+        const yearStart = new Date(today.getFullYear(),0,1);
+        startInput.value = yearStart.toISOString().slice(0,10);
+        endInput.value = today.toISOString().slice(0,10);
+        return;
+      }
+      const days = parseInt(preset.replace('d',''),10);
+      const start = new Date(today);
+      start.setDate(today.getDate()-days);
+      startInput.value = start.toISOString().slice(0,10);
+      endInput.value = today.toISOString().slice(0,10);
+    }
+
+    presetButtons.forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        presetButtons.forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        setPreset(btn.dataset.preset);
+        fetchStats();
+      });
+    });
+
+    unitButtons.forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        unitButtons.forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        currentUnits = btn.dataset.units;
+        fetchStats();
+      });
+    });
+
+    applyBtn.addEventListener('click', fetchStats);
+    bikeSelect.addEventListener('change', fetchStats);
+
+    async function fetchStats(){
+      const params = new URLSearchParams();
+      if(startInput.value) params.set('start', startInput.value);
+      if(endInput.value) params.set('end', endInput.value);
+      const bike = bikeSelect.value;
+      if(bike && bike !== 'all') params.set('bike', bike);
+      params.set('units', currentUnits);
+      const res = await fetch(`/unique_miles/stats?${params.toString()}`);
+      const data = await res.json();
+      if(!data.ok){
+        alert(data.error || 'Failed to load stats');
+        return;
+      }
+      updateLifetime(data.lifetime);
+      updateRange(data.range);
+      updateBikeTable(data.bikes);
+      updateChart(data.lifetime.by_year || []);
+    }
+
+    function updateLifetime(life){
+      document.getElementById('lifeUnique').textContent = formatDistance(life.unique_miles);
+      document.getElementById('lifeTotal').textContent = formatDistance(life.total_miles);
+      document.getElementById('lifeRepeated').textContent = formatDistance(life.repeated_miles);
+      document.getElementById('lifeExploration').textContent = (life.exploration_pct || 0).toFixed(1) + '%';
+      document.getElementById('lifeRepeatability').textContent = (life.repeatability_score || 0).toFixed(1);
+      document.getElementById('lifeGenerated').textContent = life.generated_at ? new Date(life.generated_at).toLocaleDateString() : '—';
+      document.getElementById('lifeCells').textContent = (life.unique_cells || 0).toLocaleString();
+
+      if(life.best_month_unique){
+        const {year, month, new_miles} = life.best_month_unique;
+        const label = month ? `${monthName(month)} ${year}` : '—';
+        document.getElementById('lifeBestMonth').textContent = formatDistance(new_miles || 0);
+        document.getElementById('lifeBestMonthDetail').textContent = label;
+      }else{
+        document.getElementById('lifeBestMonth').textContent = '—';
+        document.getElementById('lifeBestMonthDetail').textContent = 'No data';
+      }
+
+      if(life.best_ride_unique){
+        document.getElementById('lifeBestRide').textContent = formatDistance(life.best_ride_unique.new_miles || 0);
+        const rideDetail = life.best_ride_unique.name
+          ? `${life.best_ride_unique.name} (${life.best_ride_unique.date || ''})`
+          : life.best_ride_unique.date || '—';
+        document.getElementById('lifeBestRideDetail').textContent = rideDetail;
+      }else{
+        document.getElementById('lifeBestRide').textContent = '—';
+        document.getElementById('lifeBestRideDetail').textContent = 'No ride logged yet.';
+      }
+    }
+
+    function updateRange(range){
+      const startLabel = range.start ? new Date(range.start).toLocaleDateString() : 'first ride';
+      const endLabel = range.end ? new Date(range.end).toLocaleDateString() : 'latest ride';
+      document.getElementById('rangeLabel').textContent = `${range.ride_count || 0} rides from ${startLabel} → ${endLabel}`;
+      document.getElementById('rangeMiles').textContent = formatDistance(range.new_miles);
+      document.getElementById('rangeCells').textContent = range.unique_cells || 0;
+      document.getElementById('rangeRideCount').textContent = range.ride_count || 0;
+      document.getElementById('rangeAvgRide').textContent = formatDistance(range.avg_miles_per_ride || 0);
+      document.getElementById('rangeAvgDay').textContent = formatDistance(range.avg_distance_active_day || 0);
+      document.getElementById('rangeRestDays').textContent = (range.rest_days || 0).toLocaleString();
+      document.getElementById('rangeBestDay').textContent = formatDistance(range.best_day_distance || 0);
+      document.getElementById('rangeBestDayLabel').textContent = range.best_day_label || '—';
+      document.getElementById('rangeBestWeek').textContent = formatDistance(range.best_week_distance || 0);
+      document.getElementById('rangeBestWeekLabel').textContent = range.best_week_label || '—';
+      const cellsPerRide = range.ride_count ? (range.unique_cells || 0) / range.ride_count : 0;
+      document.getElementById('rangeCellsPerRide').textContent = cellsPerRide.toFixed(1);
+      const on = range.on_road_miles || 0;
+      const off = range.off_road_miles || 0;
+      const total = on + off;
+      const pct = total ? (on/total)*100 : 0;
+      document.getElementById('onRoadBar').style.width = `${pct}%`;
+      document.getElementById('onOffLabels').textContent = `${formatDistance(on)} on-road · ${formatDistance(off)} off-road`;
+      const roadPct = total ? (on / total) * 100 : 0;
+      const offPct = total ? 100 - roadPct : 0;
+      document.getElementById('surfaceRoadPct').textContent = total ? `${roadPct.toFixed(0)}%` : '—';
+      document.getElementById('surfaceOffPct').textContent = total ? `${offPct.toFixed(0)}%` : '—';
+      const surfaceNote = document.getElementById('surfaceNarrative');
+      if(total){
+        if(roadPct > offPct + 10){
+          surfaceNote.textContent = `Road setups dominated this window, covering ${roadPct.toFixed(0)}% of your new miles.`;
+        }else if(offPct > roadPct + 10){
+          surfaceNote.textContent = `Off-road adventures led the way with ${offPct.toFixed(0)}% of the distance.`;
+        }else{
+          surfaceNote.textContent = `Almost an even split — road accounted for ${roadPct.toFixed(0)}% and off-road ${offPct.toFixed(0)}%.`;
+        }
+      }else{
+        surfaceNote.textContent = 'No rides yet for this combination — adjust the filters to see the surface mix.';
+      }
+      const top = document.getElementById('topRides');
+      top.innerHTML = '';
+      if(!range.rides || !range.rides.length){
+        top.innerHTML = '<div class="muted">No rides with new miles.</div>';
+        return;
+      }
+      range.rides.slice(0,5).forEach(ride=>{
+        const el = document.createElement('div');
+        el.className='ride-item';
+        const bikeLabel = ride.bike_name ? ` · ${ride.bike_name}` : '';
+        const frameLabel = ride.frame_label ? ` (${ride.frame_label})` : '';
+        el.innerHTML = `<div><strong>${ride.name}</strong><br><small>${ride.date || ''}${bikeLabel}${frameLabel}</small></div><div>${formatDistance(ride.miles)}</div>`;
+        top.appendChild(el);
+      });
+    }
+
+
+    function updateBikeTable(bikes){
+      const body = document.getElementById('bikeTable');
+      if(!bikes || !bikes.length){
+        body.innerHTML = '<tr><td colspan="4" class="muted">No bike data.</td></tr>';
+        return;
+      }
+      body.innerHTML = bikes.map(b=>`<tr>
+        <td>${b.name}</td>
+        <td>${b.frame_label || '—'} ${b.is_road ? '🚴' : '🌲'}</td>
+        <td>${formatDistance(b.miles)}</td>
+        <td>${b.share.toFixed(1)}%</td>
+      </tr>`).join('');
+    }
+
+    function updateChart(rows){
+      const ctx = document.getElementById('yearChart').getContext('2d');
+      const labels = rows.map(r=>r.year);
+      const newMiles = rows.map(r=>r.new_miles);
+      const totalMiles = rows.map(r=>r.total_miles);
+      if(yearChart) yearChart.destroy();
+      yearChart = new Chart(ctx,{
+        type:'bar',
+        data:{
+          labels,
+          datasets:[
+            {label:'New miles',data:newMiles,backgroundColor:'rgba(34,211,238,0.7)'},
+            {label:'Total miles',data:totalMiles,backgroundColor:'rgba(59,130,246,0.4)'}
+          ]
+        },
+        options:{
+          responsive:true,
+          plugins:{legend:{display:true,labels:{color:varColor('#f8fafc')}}},
+          scales:{
+            x:{ticks:{color:'#cbd5f5'}},
+            y:{ticks:{color:'#cbd5f5'}}
+          }
+        }
+      });
+    }
+
+    function varColor(defaultColor){return defaultColor;}
+    function formatDistance(val){
+      if(val === null || val === undefined) return '0';
+      return parseFloat(val).toFixed(2) + (currentUnits === 'metric' ? ' km' : ' mi');
+    }
+    function monthName(month){
+      if(!month) return '';
+      const date = new Date(2000, month - 1, 1);
+      return date.toLocaleString(undefined,{month:'short'});
+    }
+
+    (function init(){
+      const today = new Date();
+      endInput.value = today.toISOString().slice(0,10);
+      const yearStart = new Date(today.getFullYear(),0,1);
+      startInput.value = yearStart.toISOString().slice(0,10);
+      fetchStats();
+    })();
+  </script>
+</body>
+</html>

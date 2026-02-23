@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+    {% include "_analytics.html" %}
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yearly Review</title>
+  <style>
+    :root {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background:#f4f6fb;
+      color:#0f172a;
+    }
+    body{
+      margin:0;
+      background:linear-gradient(180deg,#fefefe 0%,#eef2ff 60%,#e0ecff 100%);
+      min-height:100vh;
+    }
+    .page{
+      max-width:1100px;
+      margin:0 auto;
+      padding:32px 20px 80px;
+      display:flex;
+      flex-direction:column;
+      gap:28px;
+    }
+    header{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    header h1{
+      margin:0;
+      font-size:2.2rem;
+      color:#0f172a;
+    }
+    header p{
+      margin:0;
+      color:#475569;
+      max-width:640px;
+      line-height:1.5;
+    }
+    header a.back{
+      margin-top:6px;
+      color:#2563eb;
+      text-decoration:none;
+      font-weight:600;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .year-card{
+      background:#fff;
+      border:1px solid #e2e8f0;
+      border-radius:22px;
+      padding:24px;
+      box-shadow:0 20px 45px rgba(15,23,42,0.08);
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+    }
+    .year-head{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+    }
+    .year-head h2{
+      margin:0;
+      font-size:2rem;
+    }
+    .year-head span{
+      color:#475569;
+      font-weight:500;
+    }
+    .metrics-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+      gap:16px;
+    }
+    .metric{
+      padding:14px;
+      border-radius:16px;
+      background:#f8fafc;
+      border:1px solid #e2e8f0;
+    }
+    .metric .eyebrow{
+      margin:0;
+      font-size:0.75rem;
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+      color:#94a3b8;
+    }
+    .metric .value{
+      margin:4px 0 0;
+      font-size:1.6rem;
+      font-weight:600;
+      color:#111827;
+    }
+    .metric .muted{
+      margin:2px 0 0;
+      color:#64748b;
+      font-size:0.85rem;
+    }
+    .callouts{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+      gap:16px;
+    }
+    .callout{
+      border:1px solid #dbeafe;
+      border-radius:18px;
+      padding:16px;
+      background:#eff6ff;
+    }
+    .callout h3{
+      margin:0;
+      font-size:0.95rem;
+      text-transform:uppercase;
+      letter-spacing:0.1em;
+      color:#2563eb;
+    }
+    .callout strong{
+      display:block;
+      margin:6px 0 2px;
+      font-size:1.2rem;
+      color:#0f172a;
+    }
+    .callout p{
+      margin:0;
+      color:#475569;
+      font-size:0.9rem;
+      line-height:1.3;
+    }
+    .empty{
+      padding:26px;
+      border:1px dashed #cbd5f5;
+      border-radius:16px;
+      text-align:center;
+      color:#475569;
+      background:#fff;
+    }
+    .inline-link{
+      color:#2563eb;
+      font-weight:600;
+      text-decoration:none;
+    }
+    .inline-link:hover{text-decoration:underline;}
+    .detail-link{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      margin-top:8px;
+      font-weight:600;
+      color:#1d4ed8;
+      text-decoration:none;
+    }
+    .detail-link svg{
+      width:16px;
+      height:16px;
+    }
+  </style>
+</head>
+<body>
+  <a href="/how-this-works" style="position:fixed;top:18px;right:18px;padding:6px 12px;border-radius:999px;border:1px solid rgba(148,163,184,0.6);color:#0f172a;text-decoration:none;font-size:0.8rem;background:#fff;">Support</a>
+  <main class="page">
+    <header>
+      <div style="font-size:0.72rem;color:#64748b;font-style:italic;margin-bottom:6px;">
+        Strava activity data used with athlete permission.
+      </div>
+      <h1>Yearly Review</h1>
+      <p>Snapshot every calendar year of riding. Quickly see how many miles you logged, how much you climbed, and which weeks or rides defined the season.</p>
+      <a class="back" href="/"><span aria-hidden="true">←</span>Back to dashboard</a>
+    </header>
+
+    {% if year_summaries %}
+      {% for summary in year_summaries %}
+        <section class="year-card">
+          <div class="year-head">
+            <div>
+              <h2>{{ summary.year }}</h2>
+              <span>{{ summary.rides }} rides · {{ "{:,.1f}".format(summary.moving_hours) }} h moving</span>
+            </div>
+            <a class="inline-link" href="{{ url_for('yearly_review_detail', year=summary.year) }}">Deep dive →</a>
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric">
+              <p class="eyebrow">Total distance</p>
+              <p class="value">{{ "{:,.1f}".format(summary.distance_mi) }} <span style="font-size:1rem;color:#475569;">mi</span></p>
+              <p class="muted">{{ "{:,.1f}".format(summary.distance_km) }} km total</p>
+            </div>
+            <div class="metric">
+              <p class="eyebrow">Climbing</p>
+              <p class="value">{{ "{:,}".format(summary.climb_ft) }} ft</p>
+              <p class="muted">{{ "{:,}".format(summary.climb_m) }} m</p>
+            </div>
+            <div class="metric">
+              <p class="eyebrow">Moving time</p>
+              <p class="value">{{ "{:,.1f}".format(summary.moving_hours) }} h</p>
+              <p class="muted">{{ "{:,.1f}".format(summary.avg_ride_mi) }} mi average</p>
+            </div>
+            <div class="metric">
+              <p class="eyebrow">Ride count</p>
+              <p class="value">{{ summary.rides }}</p>
+              <p class="muted">Deep dive for ride log →</p>
+            </div>
+          </div>
+        </section>
+      {% endfor %}
+    {% else %}
+      <div class="empty">
+        No yearly data yet. Sync Strava rides, then swing back for a recap.
+      </div>
+    {% endif %}
+  </main>
+</body>
+</html>

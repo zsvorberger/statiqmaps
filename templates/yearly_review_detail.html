@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+    {% include "_analytics.html" %}
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ detail.year }} Year in Review</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      background:#f8fafc;
+      color:#0f172a;
+    }
+    body{
+      margin:0;
+      min-height:100vh;
+      background:linear-gradient(180deg,#fff 0%,#eef2ff 60%,#e0ecff 100%);
+    }
+    body.units-metric .unit-imperial{display:none;}
+    body.units-imperial .unit-metric{display:none;}
+    .page{
+      max-width:1200px;
+      margin:0 auto;
+      padding:32px 20px 80px;
+      display:flex;
+      flex-direction:column;
+      gap:32px;
+    }
+    header{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:space-between;
+      gap:18px;
+      align-items:flex-end;
+    }
+    header h1{
+      margin:0;
+      font-size:2.4rem;
+      color:#0f172a;
+    }
+    header p{
+      margin:8px 0 0;
+      color:#475569;
+    }
+    .unit-toggle{
+      display:inline-flex;
+      border:1px solid #cbd5f5;
+      border-radius:999px;
+      overflow:hidden;
+      background:#fff;
+    }
+    .unit-toggle button{
+      border:none;
+      padding:10px 20px;
+      cursor:pointer;
+      font-weight:600;
+      background:transparent;
+      color:#475569;
+    }
+    .unit-toggle button.active{
+      background:#2563eb;
+      color:#fff;
+    }
+    section.card{
+      background:#fff;
+      border:1px solid #e2e8f0;
+      border-radius:20px;
+      padding:24px;
+      box-shadow:0 20px 45px rgba(15,23,42,0.08);
+    }
+    .grid{
+      display:grid;
+      gap:18px;
+    }
+    .totals-grid{
+      grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    }
+    .totals-grid .metric h3{
+      margin:0;
+      font-size:0.85rem;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:#94a3b8;
+    }
+    .totals-grid .metric p{
+      margin:6px 0 0;
+      font-size:1.8rem;
+      font-weight:600;
+      color:#0f172a;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+    }
+    th,td{
+      text-align:left;
+      padding:10px 12px;
+      border-bottom:1px solid #e2e8f0;
+      font-size:0.95rem;
+    }
+    th{
+      font-size:0.8rem;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:#94a3b8;
+    }
+    .section-title{
+      margin:0 0 18px;
+      font-size:1.4rem;
+    }
+    .chart-wrap{
+      width:100%;
+      min-height:320px;
+    }
+    .back-link{
+      color:#2563eb;
+      text-decoration:none;
+      font-weight:600;
+    }
+    .muted{color:#64748b;font-size:0.9rem;}
+    .flex-between{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .pill{
+      padding:4px 12px;
+      border-radius:999px;
+      background:#eff6ff;
+      color:#1d4ed8;
+      font-weight:600;
+      font-size:0.9rem;
+    }
+    .stat-block{
+      border:1px solid #e2e8f0;
+      border-radius:16px;
+      padding:16px;
+      background:#f8fafc;
+    }
+    .stat-block h4{
+      margin:0;
+      font-size:0.8rem;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:#94a3b8;
+    }
+    .stat-block p{
+      margin:6px 0 0;
+      font-size:1.5rem;
+      font-weight:600;
+      color:#0f172a;
+    }
+    .stat-block .muted{
+      margin-top:6px;
+    }
+    .mini-grid{
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    }
+    .quarter-grid{
+      grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    }
+    .list-unstyled{
+      list-style:none;
+      padding:0;
+      margin:12px 0 0;
+      color:#475569;
+    }
+    .list-unstyled li{
+      margin-bottom:8px;
+    }
+    .chart-compact{
+      max-width:360px;
+      margin:0 auto;
+    }
+    .neutral{
+      color:#94a3b8;
+    }
+  </style>
+</head>
+<body class="units-imperial">
+  <main class="page">
+    <header>
+      <div>
+        <div style="font-size:0.72rem;color:#94a3b8;font-style:italic;margin-bottom:6px;">
+          Strava activity data used with athlete permission.
+        </div>
+        <a class="back-link" href="/yearly_review">← Back to yearly overview</a>
+        <h1>{{ detail.year }} Deep Dive</h1>
+        <p>Everything logged on the bike this calendar year. Toggle units, scan biggest efforts, and explore the charts.</p>
+      </div>
+      <div class="unit-toggle" role="group" aria-label="Unit toggle">
+        <button type="button" data-unit="imperial" class="active">Imperial</button>
+        <button type="button" data-unit="metric">Metric</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="grid totals-grid">
+        <div class="metric">
+          <h3>Total distance</h3>
+          <p>
+            <span class="unit-imperial">{{ "{:,.1f}".format(detail.totals.distance_mi) }} mi</span>
+            <span class="unit-metric">{{ "{:,.1f}".format(detail.totals.distance_km) }} km</span>
+          </p>
+          <div class="muted">Avg ride:
+            <span class="unit-imperial">{{ "{:,.1f}".format(detail.averages.ride_distance_mi) }} mi</span>
+            <span class="unit-metric">{{ "{:,.1f}".format(detail.averages.ride_distance_km) }} km</span>
+          </div>
+        </div>
+        <div class="metric">
+          <h3>Total climbing</h3>
+          <p>
+            <span class="unit-imperial">{{ "{:,}".format(detail.totals.climb_ft) }} ft</span>
+            <span class="unit-metric">{{ "{:,}".format(detail.totals.climb_m) }} m</span>
+          </p>
+          <div class="muted">Avg ride:
+            <span class="unit-imperial">{{ "{:,}".format(detail.averages.ride_climb_ft) }} ft</span>
+            <span class="unit-metric">{{ "{:,}".format(detail.averages.ride_climb_m) }} m</span>
+          </div>
+        </div>
+        <div class="metric">
+          <h3>Moving time</h3>
+          <p>{{ "{:,.1f}".format(detail.totals.moving_hours) }} h</p>
+          <div class="muted">Avg ride {{ detail.averages.ride_time }}</div>
+        </div>
+        <div class="metric">
+          <h3>Ride count</h3>
+          <p>{{ detail.totals.rides }}</p>
+          <div class="muted">Avg speed:
+            <span class="unit-imperial">{{ "{:,.1f}".format(detail.averages.avg_speed_mph) }} mph</span>
+            <span class="unit-metric">{{ "{:,.1f}".format(detail.averages.avg_speed_kmh) }} km/h</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {% if detail.quarters %}
+    <section class="card">
+      <h2 class="section-title">Quarter snapshots</h2>
+      <div class="grid quarter-grid">
+        {% for quarter in detail.quarters %}
+        <div class="stat-block">
+          <h4>{{ quarter.label }}</h4>
+          <p>
+            <span class="unit-imperial">{{ "{:,.1f}".format(quarter.distance_mi) }} mi</span>
+            <span class="unit-metric">{{ "{:,.1f}".format(quarter.distance_km) }} km</span>
+          </p>
+          <div class="muted">
+            {{ quarter.rides }} rides · <span class="unit-imperial">{{ "{:,}".format(quarter.climb_ft) }} ft</span><span class="unit-metric">{{ "{:,}".format(quarter.climb_m) }} m</span><br>
+            {{ "{:,.1f}".format(quarter.moving_hours) }} h moving
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if detail.half_split %}
+    <section class="card">
+      <h2 class="section-title">First vs second half</h2>
+      <div class="grid mini-grid">
+        <div class="stat-block">
+          <h4>Jan - Jun</h4>
+          <p><span class="unit-imperial">{{ "{:,.1f}".format(detail.half_split.first.distance_mi) }} mi</span><span class="unit-metric">{{ "{:,.1f}".format(detail.half_split.first.distance_km) }} km</span></p>
+          <div class="muted">{{ detail.half_split.first.rides }} rides · {{ "{:,.1f}".format(detail.half_split.first.moving_hours) }} h</div>
+        </div>
+        <div class="stat-block">
+          <h4>Jul - Dec</h4>
+          <p><span class="unit-imperial">{{ "{:,.1f}".format(detail.half_split.second.distance_mi) }} mi</span><span class="unit-metric">{{ "{:,.1f}".format(detail.half_split.second.distance_km) }} km</span></p>
+          <div class="muted">{{ detail.half_split.second.rides }} rides · {{ "{:,.1f}".format(detail.half_split.second.moving_hours) }} h</div>
+        </div>
+        <div class="stat-block">
+          <h4>Trend</h4>
+          <p>
+            {% if detail.half_split.trend == "up" %}
+              +<span class="unit-imperial">{{ "{:,.1f}".format(detail.half_split.delta_distance_mi) }} mi</span><span class="unit-metric">{{ "{:,.1f}".format(detail.half_split.delta_distance_km) }} km</span>
+            {% elif detail.half_split.trend == "down" %}
+              <span class="unit-imperial">{{ "{:,.1f}".format(detail.half_split.delta_distance_mi) }} mi</span><span class="unit-metric">{{ "{:,.1f}".format(detail.half_split.delta_distance_km) }} km</span>
+            {% else %}
+              <span class="neutral">Even pace</span>
+            {% endif %}
+          </p>
+          <div class="muted">Second half vs first</div>
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <div class="flex-between">
+        <h2 class="section-title">Biggest days</h2>
+        {% if detail.best_week %}
+          <div class="pill">Biggest 7 days: {{ detail.best_week.label }} &mdash; <span class="unit-imperial">{{ "{:,.1f}".format(detail.best_week.distance_mi) }} mi</span><span class="unit-metric">{{ "{:,.1f}".format(detail.best_week.distance_km) }} km</span></div>
+        {% endif %}
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Ride</th>
+            <th>Distance</th>
+            <th>Climb</th>
+            <th>Moving time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for label, ride in detail.best_days.items() %}
+            {% if ride %}
+            <tr>
+              <td>{{ label.replace("_", " ").title() }}</td>
+              <td>{{ ride.name }} <span class="muted">({{ ride.date }})</span></td>
+              <td>
+                <span class="unit-imperial">{{ "{:,.1f}".format(ride.distance_mi) }} mi</span>
+                <span class="unit-metric">{{ "{:,.1f}".format(ride.distance_km) }} km</span>
+              </td>
+              <td>
+                <span class="unit-imperial">{{ "{:,}".format(ride.elev_ft) }} ft</span>
+                <span class="unit-metric">{{ "{:,}".format(ride.elev_m) }} m</span>
+              </td>
+              <td>{{ ride.moving_time }}</td>
+            </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));">
+      <div>
+        <h2 class="section-title">Best months</h2>
+        <table>
+          <thead>
+            <tr><th>Category</th><th>Month</th><th>Stat</th></tr>
+          </thead>
+          <tbody>
+            {% if detail.best_months.distance %}
+            <tr>
+              <td>Distance</td>
+              <td>{{ detail.best_months.distance.label }}</td>
+              <td>
+                <span class="unit-imperial">{{ "{:,.1f}".format(detail.best_months.distance.distance_mi) }} mi</span>
+                <span class="unit-metric">{{ "{:,.1f}".format(detail.best_months.distance.distance_km) }} km</span>
+              </td>
+            </tr>
+            {% endif %}
+            {% if detail.best_months.elevation %}
+            <tr>
+              <td>Elevation</td>
+              <td>{{ detail.best_months.elevation.label }}</td>
+              <td>
+                <span class="unit-imperial">{{ "{:,}".format(detail.best_months.elevation.elev_ft) }} ft</span>
+                <span class="unit-metric">{{ "{:,}".format(detail.best_months.elevation.elev_m) }} m</span>
+              </td>
+            </tr>
+            {% endif %}
+            {% if detail.best_months.moving %}
+            <tr>
+              <td>Time</td>
+              <td>{{ detail.best_months.moving.label }}</td>
+              <td>{{ "{:,.1f}".format(detail.best_months.moving.moving_hours) }} h</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h2 class="section-title">Top rides by climbing</h2>
+        <table>
+          <thead>
+            <tr><th>Ride</th><th>Climb</th><th>Distance</th></tr>
+          </thead>
+          <tbody>
+            {% for ride in detail.top_climb_rides %}
+            <tr>
+              <td>{{ ride.name }} <span class="muted">({{ ride.date }})</span></td>
+              <td>
+                <span class="unit-imperial">{{ "{:,}".format(ride.elev_ft) }} ft</span>
+                <span class="unit-metric">{{ "{:,}".format(ride.elev_m) }} m</span>
+              </td>
+              <td>
+                <span class="unit-imperial">{{ "{:,.1f}".format(ride.distance_mi) }} mi</span>
+                <span class="unit-metric">{{ "{:,.1f}".format(ride.distance_km) }} km</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Streak tracker</h2>
+      <div class="grid mini-grid">
+        <div class="stat-block">
+          <h4>Longest streak</h4>
+          {% if detail.streaks.longest %}
+            <p>{{ detail.streaks.longest.length }} days</p>
+            <div class="muted">{{ detail.streaks.longest.label or "Logged rides back-to-back" }}</div>
+          {% else %}
+            <p>&mdash;</p>
+            <div class="muted">Log more rides to build a streak.</div>
+          {% endif %}
+        </div>
+        <div class="stat-block">
+          <h4>Current streak</h4>
+          {% if detail.streaks.current %}
+            <p>{{ detail.streaks.current.length }} days</p>
+            <div class="muted">{{ detail.streaks.current.label or "Most recent block" }}</div>
+          {% else %}
+            <p>&mdash;</p>
+            <div class="muted">Current streak resets once you ride again.</div>
+          {% endif %}
+        </div>
+        {% if detail.best_week %}
+        <div class="stat-block">
+          <h4>Peak week</h4>
+          <p>
+            <span class="unit-imperial">{{ "{:,.1f}".format(detail.best_week.distance_mi) }} mi</span>
+            <span class="unit-metric">{{ "{:,.1f}".format(detail.best_week.distance_km) }} km</span>
+          </p>
+          <div class="muted">{{ detail.best_week.label }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Consistency &amp; rhythm</h2>
+      <div class="grid mini-grid">
+        <div class="stat-block">
+          <h4>Avg weekly distance</h4>
+          <p><span class="unit-imperial">{{ "{:,.1f}".format(detail.consistency.weekly_avg_distance_mi) }} mi</span><span class="unit-metric">{{ "{:,.1f}".format(detail.consistency.weekly_avg_distance_km) }} km</span></p>
+          <div class="muted">Across {{ detail.consistency.active_weeks }} active weeks</div>
+        </div>
+        <div class="stat-block">
+          <h4>Avg weekly hours</h4>
+          <p>{{ "{:,.1f}".format(detail.consistency.weekly_avg_hours) }} h</p>
+          <div class="muted">Time in the saddle per week</div>
+        </div>
+        <div class="stat-block">
+          <h4>Rides per week</h4>
+          <p>{{ "{:,.1f}".format(detail.consistency.rides_per_week) }}</p>
+          <div class="muted">Within tracked weeks</div>
+        </div>
+        <div class="stat-block">
+          <h4>Longest break</h4>
+          {% if detail.consistency.longest_break %}
+            <p>{{ detail.consistency.longest_break.days }} days</p>
+            <div class="muted">{{ detail.consistency.longest_break.label }}</div>
+          {% else %}
+            <p>&mdash;</p>
+            <div class="muted">No major gaps detected.</div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <section class="card grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));align-items:center;">
+      <div>
+        <h2 class="section-title">Ride mix</h2>
+        {% set mix = detail.distributions.ride_mix %}
+        <p class="muted">Indoor vs outdoor volume across the year.</p>
+        <ul class="list-unstyled">
+          <li><strong>Outdoor:</strong> {{ mix.rides[0] }} rides · <span class="unit-imperial">{{ "{:,.1f}".format(mix.distance_mi[0]) }} mi</span><span class="unit-metric">{{ "{:,.1f}".format(mix.distance_km[0]) }} km</span></li>
+          <li><strong>Indoor:</strong> {{ mix.rides[1] }} rides · <span class="unit-imperial">{{ "{:,.1f}".format(mix.distance_mi[1]) }} mi</span><span class="unit-metric">{{ "{:,.1f}".format(mix.distance_km[1]) }} km</span></li>
+          <li><strong>Total:</strong> {{ mix.total_rides }} rides · <span class="unit-imperial">{{ "{:,.1f}".format(mix.total_distance_mi) }} mi</span><span class="unit-metric">{{ "{:,.1f}".format(mix.total_distance_km) }} km</span></li>
+        </ul>
+      </div>
+      <div class="chart-wrap chart-compact">
+        <canvas id="mixChart" height="260"></canvas>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Weekday cadence</h2>
+      <div class="chart-wrap">
+        <canvas id="weekdayChart" height="320"></canvas>
+      </div>
+      <table>
+        <thead><tr><th>Day</th><th>Rides</th><th>Distance</th><th>Hours</th><th>Avg speed</th></tr></thead>
+        <tbody>
+          {% for day in detail.distributions.weekday_table %}
+          <tr>
+            <td>{{ day.label }}</td>
+            <td>{{ day.rides }}</td>
+            <td>
+              <span class="unit-imperial">{{ "{:,.1f}".format(day.distance_mi) }} mi</span>
+              <span class="unit-metric">{{ "{:,.1f}".format(day.distance_km) }} km</span>
+            </td>
+            <td>{{ "{:,.1f}".format(day.moving_hours) }} h</td>
+            <td>
+              <span class="unit-imperial">{{ "{:,.1f}".format(day.avg_speed_mph) }} mph</span>
+              <span class="unit-metric">{{ "{:,.1f}".format(day.avg_speed_kmh) }} km/h</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Ride timing</h2>
+      <div class="chart-wrap">
+        <canvas id="timeChart" height="300"></canvas>
+      </div>
+      <table>
+        <thead><tr><th>Window</th><th>Rides</th><th>Distance</th><th>Hours</th></tr></thead>
+        <tbody>
+          {% for bucket in detail.distributions.time_of_day.table %}
+          <tr>
+            <td>{{ bucket.label }}</td>
+            <td>{{ bucket.rides }}</td>
+            <td>
+              <span class="unit-imperial">{{ "{:,.1f}".format(bucket.distance_mi) }} mi</span>
+              <span class="unit-metric">{{ "{:,.1f}".format(bucket.distance_km) }} km</span>
+            </td>
+            <td>{{ "{:,.1f}".format(bucket.moving_hours) }} h</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Ride distance buckets</h2>
+      <div class="chart-wrap">
+        <canvas id="bucketChart" height="320"></canvas>
+      </div>
+      <table>
+        <thead><tr><th>Bucket</th><th>Rides</th><th>Distance</th><th>Hours</th></tr></thead>
+        <tbody>
+          {% for bucket in detail.distributions.distance_bucket_table %}
+          <tr>
+            <td>{{ bucket.label }}</td>
+            <td>{{ bucket.rides }}</td>
+            <td>
+              <span class="unit-imperial">{{ "{:,.1f}".format(bucket.distance_mi) }} mi</span>
+              <span class="unit-metric">{{ "{:,.1f}".format(bucket.distance_km) }} km</span>
+            </td>
+            <td>{{ "{:,.1f}".format(bucket.moving_hours) }} h</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Monthly flow</h2>
+      {% if detail.charts.monthly.labels %}
+        <div class="chart-wrap">
+          <canvas id="monthlyChart" height="320"></canvas>
+        </div>
+      {% else %}
+        <p class="muted">Not enough rides for a monthly breakdown.</p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Weekly distance trend</h2>
+      {% if detail.charts.weekly.labels %}
+        <div class="chart-wrap">
+          <canvas id="weeklyChart" height="320"></canvas>
+        </div>
+      {% else %}
+        <p class="muted">Weekly chart appears once you log multiple rides.</p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Top distance days</h2>
+      <table>
+        <thead><tr><th>Ride</th><th>Distance</th><th>Climb</th><th>Time</th></tr></thead>
+        <tbody>
+          {% for ride in detail.top_distance_rides %}
+          <tr>
+            <td>{{ ride.name }} <span class="muted">({{ ride.date }})</span></td>
+            <td>
+              <span class="unit-imperial">{{ "{:,.1f}".format(ride.distance_mi) }} mi</span>
+              <span class="unit-metric">{{ "{:,.1f}".format(ride.distance_km) }} km</span>
+            </td>
+            <td>
+              <span class="unit-imperial">{{ "{:,}".format(ride.elev_ft) }} ft</span>
+              <span class="unit-metric">{{ "{:,}".format(ride.elev_m) }} m</span>
+            </td>
+            <td>{{ ride.moving_time }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Fastest rides</h2>
+      {% if detail.fastest_rides %}
+      <table>
+        <thead><tr><th>Ride</th><th>Avg speed</th><th>Distance</th><th>Time</th></tr></thead>
+        <tbody>
+          {% for ride in detail.fastest_rides %}
+          <tr>
+            <td>{{ ride.name }} <span class="muted">({{ ride.date }})</span></td>
+            <td>
+              <span class="unit-imperial">{{ "{:,.1f}".format(ride.avg_speed_mph) }} mph</span>
+              <span class="unit-metric">{{ "{:,.1f}".format(ride.avg_speed_kmh) }} km/h</span>
+            </td>
+            <td>
+              <span class="unit-imperial">{{ "{:,.1f}".format(ride.distance_mi) }} mi</span>
+              <span class="unit-metric">{{ "{:,.1f}".format(ride.distance_km) }} km</span>
+            </td>
+            <td>{{ ride.moving_time }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <p class="muted">Need at least a few rides with power/speed data to rank the fastest.</p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2 class="section-title">Most recent rides</h2>
+      <table>
+        <thead><tr><th>Ride</th><th>Distance</th><th>Climb</th><th>Time</th></tr></thead>
+        <tbody>
+          {% for ride in detail.recent_rides %}
+          <tr>
+            <td>{{ ride.name }} <span class="muted">({{ ride.date }})</span></td>
+            <td>
+              <span class="unit-imperial">{{ "{:,.1f}".format(ride.distance_mi) }} mi</span>
+              <span class="unit-metric">{{ "{:,.1f}".format(ride.distance_km) }} km</span>
+            </td>
+            <td>
+              <span class="unit-imperial">{{ "{:,}".format(ride.elev_ft) }} ft</span>
+              <span class="unit-metric">{{ "{:,}".format(ride.elev_m) }} m</span>
+            </td>
+            <td>{{ ride.moving_time }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const DETAIL_DATA = {{ detail | tojson }};
+    const unitButtons = document.querySelectorAll('.unit-toggle button');
+    let unitMode = 'imperial';
+
+    unitButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        unitButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        unitMode = btn.dataset.unit;
+        document.body.classList.toggle('units-metric', unitMode === 'metric');
+        document.body.classList.toggle('units-imperial', unitMode === 'imperial');
+        updateCharts();
+      });
+    });
+
+    const monthlyCtx = document.getElementById('monthlyChart');
+    const weeklyCtx = document.getElementById('weeklyChart');
+    const weekdayCtx = document.getElementById('weekdayChart');
+    const bucketCtx = document.getElementById('bucketChart');
+    const mixCtx = document.getElementById('mixChart');
+    const timeCtx = document.getElementById('timeChart');
+    let monthlyChart, weeklyChart, weekdayChart, bucketChart, mixChart, timeChart;
+
+    function makeMonthlyChart(){
+      if (!monthlyCtx) return;
+      monthlyChart = new Chart(monthlyCtx, {
+        type:'bar',
+        data:{
+          labels: DETAIL_DATA.charts.monthly.labels,
+          datasets:[
+            {
+              label:'Distance (mi)',
+              backgroundColor:'#2563eb',
+              borderRadius:6,
+              yAxisID:'distanceAxis',
+              data: DETAIL_DATA.charts.monthly.distance_mi
+            },
+            {
+              label:'Climb (ft)',
+              type:'line',
+              borderColor:'#f59e0b',
+              backgroundColor:'rgba(245,158,11,0.15)',
+              yAxisID:'climbAxis',
+              tension:0.3,
+              data: DETAIL_DATA.charts.monthly.elev_ft
+            },
+            {
+              label:'Hours',
+              type:'line',
+              borderColor:'#7c3aed',
+              backgroundColor:'rgba(124,58,237,0.15)',
+              yAxisID:'hoursAxis',
+              tension:0.3,
+              borderDash:[6,4],
+              data: DETAIL_DATA.charts.monthly.hours
+            },
+          ]
+        },
+        options:{
+          responsive:true,
+          interaction:{mode:'index', intersect:false},
+          scales:{
+            distanceAxis:{beginAtZero:true,title:{display:true,text:'Distance (mi)'}},
+            climbAxis:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Climb (ft)'}},
+            hoursAxis:{
+              beginAtZero:true,
+              position:'right',
+              offset:true,
+              grid:{drawOnChartArea:false},
+              title:{display:true,text:'Hours'}
+            }
+          }
+        }
+      });
+    }
+
+    function makeWeeklyChart(){
+      if (!weeklyCtx) return;
+      weeklyChart = new Chart(weeklyCtx, {
+        type:'line',
+        data:{
+          labels: DETAIL_DATA.charts.weekly.labels,
+          datasets:[
+            {
+              label:'Distance (mi)',
+              borderColor:'#0ea5e9',
+              backgroundColor:'rgba(14,165,233,0.18)',
+              tension:0.35,
+              fill:true,
+              yAxisID:'distanceAxis',
+              data: DETAIL_DATA.charts.weekly.distance_mi
+            },
+            {
+              label:'Climb (ft)',
+              borderColor:'#f97316',
+              backgroundColor:'rgba(249,115,22,0.18)',
+              tension:0.35,
+              fill:false,
+              yAxisID:'climbAxis',
+              data: DETAIL_DATA.charts.weekly.elev_ft
+            },
+            {
+              label:'Hours',
+              borderColor:'#6366f1',
+              backgroundColor:'rgba(99,102,241,0.15)',
+              tension:0.35,
+              fill:false,
+              yAxisID:'hoursAxis',
+              borderDash:[5,4],
+              data: DETAIL_DATA.charts.weekly.hours
+            },
+          ]
+        },
+        options:{
+          responsive:true,
+          interaction:{mode:'index', intersect:false},
+          scales:{
+            distanceAxis:{beginAtZero:true,title:{display:true,text:'Distance (mi)'}},
+            climbAxis:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Climb (ft)'}},
+            hoursAxis:{beginAtZero:true,position:'right',offset:true,grid:{drawOnChartArea:false},title:{display:true,text:'Hours'}}
+          }
+        }
+      });
+    }
+
+    function makeWeekdayChart(){
+      if (!weekdayCtx) return;
+      weekdayChart = new Chart(weekdayCtx, {
+        type:'bar',
+        data:{
+          labels: DETAIL_DATA.distributions.weekday.labels,
+          datasets:[
+            {
+              label:'Rides',
+              backgroundColor:'#c7d2fe',
+              borderRadius:6,
+              data: DETAIL_DATA.distributions.weekday.rides,
+              yAxisID:'y'
+            },
+            {
+              label:'Distance',
+              type:'line',
+              fill:false,
+              borderColor:'#2563eb',
+              tension:0.35,
+              yAxisID:'y1',
+              data: DETAIL_DATA.distributions.weekday.distance_mi
+            }
+          ]
+        },
+        options:{
+          responsive:true,
+          interaction:{mode:'index', intersect:false},
+          scales:{
+            y:{beginAtZero:true,title:{display:true,text:'Rides'},ticks:{stepSize:1}},
+            y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Distance (mi)'}}
+          }
+        }
+      });
+    }
+
+    function makeBucketChart(){
+      if (!bucketCtx) return;
+      bucketChart = new Chart(bucketCtx, {
+        type:'bar',
+        data:{
+          labels: DETAIL_DATA.distributions.distance_buckets.labels,
+          datasets:[
+            {
+              label:'Rides',
+              backgroundColor:'#fde68a',
+              borderRadius:6,
+              data: DETAIL_DATA.distributions.distance_buckets.rides,
+              yAxisID:'y'
+            },
+            {
+              label:'Distance',
+              type:'line',
+              borderColor:'#f97316',
+              fill:false,
+              tension:0.35,
+              yAxisID:'y1',
+              data: DETAIL_DATA.distributions.distance_buckets.distance_mi
+            }
+          ]
+        },
+        options:{
+          responsive:true,
+          interaction:{mode:'index', intersect:false},
+          scales:{
+            y:{beginAtZero:true,title:{display:true,text:'Rides'},ticks:{stepSize:1}},
+            y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Distance (mi)'}}
+          }
+        }
+      });
+    }
+
+    function makeMixChart(){
+      if (!mixCtx) return;
+      mixChart = new Chart(mixCtx, {
+        type:'doughnut',
+        data:{
+          labels: DETAIL_DATA.distributions.ride_mix.labels,
+          datasets:[
+            {
+              data: DETAIL_DATA.distributions.ride_mix.rides,
+              backgroundColor:['#2563eb','#a5b4fc'],
+              borderWidth:0
+            }
+          ]
+        },
+        options:{
+          cutout:'65%',
+          plugins:{
+            legend:{position:'bottom'}
+          }
+        }
+      });
+    }
+    function makeTimeChart(){
+      if (!timeCtx) return;
+      timeChart = new Chart(timeCtx, {
+        type:'bar',
+        data:{
+          labels: DETAIL_DATA.distributions.time_of_day.labels,
+          datasets:[
+            {
+              label:'Rides',
+              backgroundColor:'#fcd34d',
+              borderRadius:6,
+              data: DETAIL_DATA.distributions.time_of_day.rides,
+              yAxisID:'y'
+            },
+            {
+              label:'Distance (mi)',
+              type:'line',
+              borderColor:'#0f172a',
+              backgroundColor:'rgba(15,23,42,0.15)',
+              yAxisID:'y1',
+              tension:0.35,
+              data: DETAIL_DATA.distributions.time_of_day.distance_mi
+            }
+          ]
+        },
+        options:{
+          responsive:true,
+          interaction:{mode:'index',intersect:false},
+          scales:{
+            y:{beginAtZero:true,title:{display:true,text:'Rides'},ticks:{stepSize:1}},
+            y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Distance (mi)'}}
+          }
+        }
+      });
+    }
+
+    function updateCharts(){
+      const distanceLabel = unitMode === 'imperial' ? 'Distance (mi)' : 'Distance (km)';
+      const climbLabel = unitMode === 'imperial' ? 'Climb (ft)' : 'Climb (m)';
+      if (monthlyChart){
+        monthlyChart.data.datasets[0].data = unitMode === 'imperial'
+          ? DETAIL_DATA.charts.monthly.distance_mi
+          : DETAIL_DATA.charts.monthly.distance_km;
+        monthlyChart.data.datasets[0].label = distanceLabel;
+        monthlyChart.options.scales.distanceAxis.title.text = distanceLabel;
+        monthlyChart.data.datasets[1].data = unitMode === 'imperial'
+          ? DETAIL_DATA.charts.monthly.elev_ft
+          : DETAIL_DATA.charts.monthly.elev_m;
+        monthlyChart.data.datasets[1].label = climbLabel;
+        monthlyChart.options.scales.climbAxis.title.text = climbLabel;
+        monthlyChart.update();
+      }
+      if (weeklyChart){
+        weeklyChart.data.datasets[0].data = unitMode === 'imperial'
+          ? DETAIL_DATA.charts.weekly.distance_mi
+          : DETAIL_DATA.charts.weekly.distance_km;
+        weeklyChart.data.datasets[0].label = distanceLabel;
+        weeklyChart.options.scales.distanceAxis.title.text = distanceLabel;
+        weeklyChart.data.datasets[1].data = unitMode === 'imperial'
+          ? DETAIL_DATA.charts.weekly.elev_ft
+          : DETAIL_DATA.charts.weekly.elev_m;
+        weeklyChart.data.datasets[1].label = climbLabel;
+        weeklyChart.options.scales.climbAxis.title.text = climbLabel;
+        weeklyChart.update();
+      }
+      if (weekdayChart){
+        weekdayChart.data.datasets[1].data = unitMode === 'imperial'
+          ? DETAIL_DATA.distributions.weekday.distance_mi
+          : DETAIL_DATA.distributions.weekday.distance_km;
+        weekdayChart.options.scales.y1.title.text = distanceLabel;
+        weekdayChart.update();
+      }
+      if (bucketChart){
+        bucketChart.data.datasets[1].data = unitMode === 'imperial'
+          ? DETAIL_DATA.distributions.distance_buckets.distance_mi
+          : DETAIL_DATA.distributions.distance_buckets.distance_km;
+        bucketChart.options.scales.y1.title.text = distanceLabel;
+        bucketChart.update();
+      }
+      if (timeChart){
+        timeChart.data.datasets[1].data = unitMode === 'imperial'
+          ? DETAIL_DATA.distributions.time_of_day.distance_mi
+          : DETAIL_DATA.distributions.time_of_day.distance_km;
+        timeChart.data.datasets[1].label = distanceLabel;
+        timeChart.options.scales.y1.title.text = distanceLabel;
+        timeChart.update();
+      }
+    }
+
+    makeMonthlyChart();
+    makeWeeklyChart();
+    makeWeekdayChart();
+    makeBucketChart();
+    makeMixChart();
+    makeTimeChart();
+  </script>
+</body>
+</html>

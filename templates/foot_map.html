@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+    {% include "_analytics.html" %}
+  <title>Foot Heatmap</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #0d0d1a;
+      color: #f0f0f0;
+    }
+    h2 {
+      text-align: center;
+      color: #ff6666;
+      margin: 10px 0;
+    }
+    #map {
+      height: calc(100vh - 60px);
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div style="font-size:0.72rem;color:#9ca3af;font-style:italic;text-align:left;margin:10px 12px 0;">
+    Strava activity data used with athlete permission.
+  </div>
+  <h2>🥾 Hiking / Running / Walking Heatmap</h2>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([40.44, -79.99], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+    }).addTo(map);
+
+    // 👇 IMPORTANT: add "| safe" to stop Jinja escaping the JSON
+    const polylines = {{ polylines | tojson | safe }};
+    console.log("Polylines received:", polylines);
+
+    let allCoords = [];
+
+    polylines.forEach(coords => {
+      if (!coords || coords.length === 0) return;
+      L.polyline(coords, { color: "lime", weight: 5, opacity: 1 }).addTo(map);
+      allCoords.push(...coords);
+    });
+
+    if (allCoords.length > 0) {
+      const bounds = L.latLngBounds(allCoords);
+      map.fitBounds(bounds);
+    }
+  </script>
+</body>
+</html>

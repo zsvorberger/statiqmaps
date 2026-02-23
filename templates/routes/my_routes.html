@@ -1,0 +1,8 @@
+{% extends "routes/routes_base.html" %}
+{% import "routes/routes_macros.html" as routes_ui %}
+{% block content %}
+
+<h2>My Created Routes</h2>
+{{ routes_ui.render_route_cards(routes, export_formats, show_creator=False) }}
+
+{% endblock %}

@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+    {% include "_analytics.html" %}
+  <title>Lifetime Summary</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #0f172a;
+      background: #0b1220;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #101a33, #050914 70%);
+      color: #e2e8f0;
+    }
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 36px 20px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2.3rem;
+      color: #f8fafc;
+    }
+    header p {
+      margin: 4px 0 0;
+      color: #94a3b8;
+      max-width: 420px;
+    }
+    .global-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 18px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #0b1220;
+    }
+    .btn.primary { background: linear-gradient(135deg, #fb923c, #ef4444); color: #fff; }
+    .btn.secondary { background: #e2e8f0; }
+    .btn.ghost { background: rgba(255,255,255,0.08); color: #f8fafc; border:1px solid rgba(255,255,255,0.12); }
+    #blocks {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .summary-card {
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      border-radius: 22px;
+      padding: 20px 22px 28px;
+      box-shadow: 0 30px 60px rgba(2,8,23,0.65);
+      backdrop-filter: blur(6px);
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .card-header h2 {
+      margin: 4px 0 0;
+      font-size: 1.4rem;
+      color: #f8fafc;
+    }
+    .card-header .range-label {
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 0.75rem;
+      color: #38bdf8;
+    }
+    .unit-toggle {
+      display: inline-flex;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .unit-toggle button {
+      border: none;
+      padding: 6px 14px;
+      background: transparent;
+      color: #94a3b8;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .unit-toggle button.active {
+      background: #38bdf8;
+      color: #031525;
+    }
+    .summary-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .stat-box {
+      border: 1px solid rgba(148,163,184,0.25);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: rgba(30,41,59,0.9);
+    }
+    .stat-title {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .stat-value {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #f8fafc;
+      margin-top: 4px;
+    }
+    .stat-value small {
+      display: block;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .detail-block {
+      border: 1px solid rgba(148,163,184,0.2);
+      border-radius: 16px;
+      padding: 12px 14px;
+      background: rgba(15,23,42,0.8);
+    }
+    .detail-block strong {
+      display: block;
+      font-size: 1.05rem;
+      color: #f8fafc;
+    }
+    .detail-block span {
+      color: #94a3b8;
+      font-size: 0.83rem;
+    }
+    .detail-block span small{
+      display:block;
+      color:#64748b;
+      font-size:0.78rem;
+      margin-top:2px;
+    }
+    .detail-block span small{
+      display:block;
+      color:#64748b;
+      font-size:0.78rem;
+      margin-top:2px;
+    }
+    .derived-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(59,130,246,0.18);
+      color: #93c5fd;
+      font-size: 0.78rem;
+    }
+    .control-group {
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: space-between;
+    }
+    .history-notice {
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 18px;
+      padding: 16px 18px;
+      background: rgba(12, 17, 32, 0.8);
+      color: #cbd5f5;
+      box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .history-notice__text {
+      font-size: 0.9rem;
+      color: #e2e8f0;
+    }
+    .history-notice button {
+      background: #38bdf8;
+      color: #031525;
+      border: none;
+      border-radius: 999px;
+      padding: 6px 16px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .range-buttons, .custom-range, .quick-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .range-buttons button,
+    .quick-actions button {
+      border: 1px solid rgba(148,163,184,0.4);
+      background: rgba(15,23,42,0.6);
+      color: #e2e8f0;
+      padding: 6px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .range-buttons button.active {
+      background: #38bdf8;
+      color: #031525;
+      border-color: #38bdf8;
+    }
+    .range-buttons button:hover,
+    .quick-actions button:hover {
+      border-color: #38bdf8;
+      color: #38bdf8;
+    }
+    .custom-range input[type="date"] {
+      background: rgba(15,23,42,0.6);
+      border: 1px solid rgba(148,163,184,0.4);
+      border-radius: 10px;
+      padding: 6px 10px;
+      color: #e2e8f0;
+    }
+    .custom-range button {
+      border: 1px solid rgba(148,163,184,0.4);
+      background: #38bdf8;
+      color: #031525;
+      padding: 6px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .charts-row{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:14px;
+      margin-top:16px;
+    }
+    .mini-chart{
+      border:1px solid rgba(148,163,184,0.25);
+      border-radius:16px;
+      padding:12px 14px 8px;
+      background:rgba(15,23,42,0.85);
+    }
+    .mini-chart canvas{
+      width:100%;
+      height:140px;
+    }
+    .chart-title{
+      margin:0 0 6px;
+      font-size:0.8rem;
+      color:#94a3b8;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+    }
+    .empty {
+      padding: 18px;
+      text-align: center;
+      color: #94a3b8;
+      border: 1px dashed rgba(148,163,184,0.4);
+      border-radius: 16px;
+    }
+    @media (max-width: 600px) {
+      .card-header { flex-direction: column; align-items: flex-start; }
+      header { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div>
+        <div style="font-size:0.72rem;color:#94a3b8;font-style:italic;margin-bottom:6px;">
+          Strava activity data used with athlete permission.
+        </div>
+        <h1>Your Lifetime Stats</h1>
+        <p>Compare seasons, eras, or custom time ranges with rich summaries that include totals, efficiency, and highlights.</p>
+      </div>
+      <div class="global-actions">
+        <button class="btn primary" onclick="addSummaryBlock()">Add Summary Block</button>
+        <button class="btn ghost" onclick="location.href='/export'">Export Data</button>
+      </div>
+    </header>
+
+    {% if not stats_ready %}
+    <div class="history-notice">
+      <div class="history-notice__text">
+        The stats cache isn’t ready yet—queue the background build before adding comparison blocks.
+      </div>
+      <div>
+        <button id="historyBuildBtn" type="button">Queue stats build</button>
+        <div id="historyBuildStatus" class="history-notice__text" style="margin-top:4px;font-size:0.7rem;">Waiting on cache</div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div id="blocks">
+      <div class="empty">Tap “Add Summary Block” to start comparing your stats across different time windows.</div>
+    </div>
+  </div>
+
+  <template id="block-template">
+    <div class="summary-card">
+      <div class="card-header">
+        <div>
+          <p class="range-label">All Time</p>
+          <h2>Summary</h2>
+        </div>
+        <div class="unit-toggle">
+          <button onclick="updateUnits(this, 'metric')" class="active">Metric</button>
+          <button onclick="updateUnits(this, 'imperial')">Imperial</button>
+        </div>
+      </div>
+
+      <div class="summary-content">
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="stat-title">Total Activities</div>
+            <div class="stat-value" data-field="activity_count">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-title">Total Distance</div>
+            <div class="stat-value" data-field="total_distance">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-title">Total Elevation</div>
+            <div class="stat-value" data-field="total_elevation">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-title">Moving Time</div>
+            <div class="stat-value" data-field="total_time">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="range-buttons">
+          <button onclick="updateSummary(this,'all')" data-range-btn data-range="all">All Time</button>
+          <button onclick="updateSummary(this,'10years')" data-range-btn data-range="10years">10 Yr</button>
+          <button onclick="updateSummary(this,'5years')" data-range-btn data-range="5years">5 Yr</button>
+          <button onclick="updateSummary(this,'3years')" data-range-btn data-range="3years">3 Yr</button>
+          <button onclick="updateSummary(this,'1year')" data-range-btn data-range="1year">1 Yr</button>
+          <button onclick="updateSummary(this,'3months')" data-range-btn data-range="3months">3 Mo</button>
+          <button onclick="updateSummary(this,'1month')" data-range-btn data-range="1month">1 Mo</button>
+          <button onclick="updateSummary(this,'1week')" data-range-btn data-range="1week">1 Wk</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <div class="custom-range">
+          <input type="date" class="custom-date">
+          <span>to</span>
+          <input type="date" class="end-date">
+          <button onclick="customDateSummaryFromBlock(this)">Custom Range</button>
+        </div>
+        <div class="quick-actions">
+          <button onclick="removeSummaryBlock(this)">Remove</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const summaryEnabled = {{ 'true' if stats_ready else 'false' }};
+    function setBlockLoading(block) {
+      if (!block) return;
+      const content = block.querySelector('.summary-content');
+      if (content) {
+        content.innerHTML = '<div class="stat-box">Loading stats...</div>';
+      }
+    }
+
+    function ensureBlocksContainer() {
+      const container = document.getElementById('blocks');
+      if (container.children.length === 1 && container.firstElementChild.classList.contains('empty')) {
+        container.innerHTML = '';
+      }
+    }
+
+    function addSummaryBlock() {
+      if (!summaryEnabled) {
+        alert('Stats cache is not ready yet. Build it via the queue button first.');
+        return;
+      }
+      ensureBlocksContainer();
+      const template = document.getElementById('block-template').content.cloneNode(true);
+      document.getElementById('blocks').appendChild(template);
+      const newBlock = document.querySelector('.summary-card:last-of-type');
+      const defaultButton = newBlock.querySelector('[data-range-btn]');
+      if (defaultButton) updateSummary(defaultButton, 'all');
+    }
+
+    function removeSummaryBlock(button) {
+      const block = button.closest('.summary-card');
+      if (!block) return;
+      destroyCharts(block);
+      block.remove();
+      const container = document.getElementById('blocks');
+      if (!container.children.length) {
+        container.innerHTML = '<div class="empty">Tap “Add Summary Block” to start comparing your stats across different time windows.</div>';
+      }
+    }
+
+    function updateSummary(button, since) {
+      const block = button.closest('.summary-card');
+      if (!block) return;
+      if (!summaryEnabled) {
+        block.querySelector('.summary-content').innerHTML = '<div class="stat-box">Stats cache not ready.</div>';
+        return;
+      }
+      const units = block.dataset.units || 'metric';
+      const params = new URLSearchParams({ since, units });
+      setBlockLoading(block);
+      fetch('/get_summary?' + params.toString())
+        .then(res => res.json())
+        .then(data => updateSummaryContent(block, data))
+        .catch(() => block.querySelector('.summary-content').innerHTML = '<div class="stat-box">Unable to load stats.</div>');
+    }
+
+    function customDateSummaryFromBlock(button) {
+      const block = button.closest('.summary-card');
+      if (!block) return;
+      if (!summaryEnabled) {
+        block.querySelector('.summary-content').innerHTML = '<div class="stat-box">Stats cache not ready.</div>';
+        return;
+      }
+      const custom_date = block.querySelector('.custom-date').value;
+      const end_date = block.querySelector('.end-date').value;
+      const units = block.dataset.units || 'metric';
+      const params = new URLSearchParams({ since: 'custom', custom_date, end_date, units });
+      setBlockLoading(block);
+      fetch('/get_summary?' + params.toString())
+        .then(res => res.json())
+        .then(data => updateSummaryContent(block, data))
+        .catch(() => block.querySelector('.summary-content').innerHTML = '<div class="stat-box">Unable to load stats.</div>');
+    }
+
+    function updateUnits(button, units) {
+      const block = button.closest('.summary-card');
+      if (!block) return;
+      if (!summaryEnabled) return;
+      const since = block.dataset.since || 'all';
+      const custom_date = block.dataset.custom_date || '';
+      const end_date = block.dataset.end_date || '';
+      block.querySelectorAll('.unit-toggle button').forEach(btn => btn.classList.toggle('active', btn === button));
+      const params = new URLSearchParams({ since, units, custom_date, end_date });
+      setBlockLoading(block);
+      fetch('/get_summary?' + params.toString())
+        .then(res => res.json())
+        .then(data => updateSummaryContent(block, data))
+        .catch(() => block.querySelector('.summary-content').innerHTML = '<div class="stat-box">Unable to load stats.</div>');
+    }
+
+    function sanitizeNumber(value) {
+      if (value === undefined || value === null || value === '') return null;
+      if (typeof value === 'number') return value;
+      const cleaned = String(value).replace(/[^0-9.+-]/g, '');
+      const parsed = parseFloat(cleaned);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function formatNumber(value, digits = 1) {
+      if (value === null || value === undefined || isNaN(value)) return '—';
+      return Number(value).toLocaleString(undefined, {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      });
+    }
+
+    function formatRangeTitle(data) {
+      if (!data) return 'Summary';
+      if (data.since === 'custom' && data.custom_date_str && data.end_date_str) {
+        return `From ${data.custom_date_str} to ${data.end_date_str}`;
+      }
+      if (data.since === 'custom' && data.custom_date_str) {
+        return `From ${data.custom_date_str}`;
+      }
+      const map = {
+        all: 'All Time',
+        '10years': 'Past 10 Years',
+        '5years': 'Past 5 Years',
+        '3years': 'Past 3 Years',
+        '1year': 'Past Year',
+        '3months': 'Past 3 Months',
+        '1month': 'Past Month',
+        '1week': 'Past Week'
+      };
+      return map[data.since] || 'Summary';
+    }
+
+    function formatUnitsLabel(units, type) {
+      const metric = { distance: 'km', elevation: 'm', speed: 'km/h' };
+      const imperial = { distance: 'mi', elevation: 'ft', speed: 'mph' };
+      const lookup = units === 'imperial' ? imperial : metric;
+      return lookup[type] || '';
+    }
+
+    function updateSummaryContent(block, data) {
+      if (!block || !data) return;
+      if (data.status === 'building') {
+        block.querySelector('.summary-content').innerHTML = '<div class="stat-box">Stats cache not ready.</div>';
+        return;
+      }
+
+      block.dataset.units = data.units;
+      block.dataset.since = data.since;
+      block.dataset.custom_date = data.custom_date_str || '';
+      block.dataset.end_date = data.end_date_str || '';
+
+      const rangeLabel = block.querySelector('.range-label');
+      rangeLabel.textContent = formatRangeTitle(data);
+      block.querySelector('h2').textContent = `${formatRangeTitle(data)} Summary`;
+      block.querySelectorAll('.unit-toggle button').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase() === (data.units === 'imperial' ? 'imperial' : 'metric'));
+      });
+      block.querySelectorAll('[data-range-btn]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.range === (data.since || 'all'));
+      });
+
+      const distanceUnit = formatUnitsLabel(data.units, 'distance');
+      const elevationUnit = formatUnitsLabel(data.units, 'elevation');
+      const speedUnit = formatUnitsLabel(data.units, 'speed');
+
+      const totalDistance = sanitizeNumber(data.total_distance);
+      const totalElevation = sanitizeNumber(data.total_elevation);
+      const totalTime = sanitizeNumber(data.total_time);
+      const activityCount = sanitizeNumber(data.activity_count);
+      const activeDays = sanitizeNumber(data.active_days);
+      const restDays = sanitizeNumber(data.rest_days);
+
+      const avgDistance = activityCount ? (totalDistance || 0) / activityCount : null;
+      const avgElevation = activityCount ? (totalElevation || 0) / activityCount : null;
+      const avgTimePerActivity = activityCount ? (totalTime || 0) / activityCount : null;
+      const climbDensity = totalDistance ? (totalElevation || 0) / totalDistance : null;
+      const timePerDistance = totalDistance ? (totalTime || 0) / totalDistance : null;
+
+      const longestRide = sanitizeNumber(data.longest_ride);
+      const hottestRide = sanitizeNumber(data.hottest_ride);
+      const biggestClimb = sanitizeNumber(data.max_elevation);
+      const highestAvgElev = sanitizeNumber(data.highest_avg_elev);
+      const avgSpeedValue = sanitizeNumber(data.avg_speed);
+      const avgHoursPerWeek = sanitizeNumber(data.avg_hours_per_week);
+      const ridesPerWeek = sanitizeNumber(data.rides_per_week);
+      const distancePerWeek = sanitizeNumber(data.distance_per_week);
+      const indoorShare = sanitizeNumber(data.indoor_pct);
+      const indoorDistance = sanitizeNumber(data.indoor_distance);
+      const outdoorDistance = sanitizeNumber(data.outdoor_distance);
+      const avgCadenceValue = sanitizeNumber(data.avg_cadence);
+      const avgPowerValue = sanitizeNumber(data.avg_power);
+      const topSpeedValue = sanitizeNumber(data.top_speed);
+      const bestDayDistance = sanitizeNumber(data.best_day_distance);
+      const bestDayLabel = data.best_day_label || '';
+      const longestRideLabel = data.longest_ride_label || '';
+      const currentStreak = data.current_streak;
+      const longestStreak = data.longest_streak;
+      const bestWeekDistance = sanitizeNumber(data.best_week_distance);
+      const bestWeekLabel = data.best_week_label || '';
+      const avgDistanceActiveDay = sanitizeNumber(data.avg_distance_active_day);
+      const weeklyChart = data.weekly_chart || {};
+      const indoorSessions = sanitizeNumber(data.indoor_sessions);
+      const outdoorSessions = sanitizeNumber(data.outdoor_sessions);
+
+      const primaryStats = [
+        { title: 'Total Activities', value: formatNumber(activityCount, 0) },
+        { title: 'Ride Days', value: formatNumber(activeDays, 0) },
+        { title: 'Total Distance', value: `${formatNumber(totalDistance, 2)} ${distanceUnit}` },
+        { title: 'Total Elevation', value: `${formatNumber(totalElevation, 0)} ${elevationUnit}` },
+        { title: 'Moving Time', value: `${formatNumber(totalTime, 2)} hrs` }
+      ];
+
+      const spotlightStats = [
+        {
+          label: 'Longest Ride',
+          value: longestRide !== null ? `${formatNumber(longestRide, 2)} ${distanceUnit}` : '—',
+          detail: longestRideLabel || ''
+        },
+        {
+          label: 'Best Day Distance',
+          value: bestDayDistance !== null ? `${formatNumber(bestDayDistance, 2)} ${distanceUnit}` : '—',
+          detail: bestDayLabel ? `on ${bestDayLabel}` : ''
+        },
+        {
+          label: 'Top Avg Speed',
+          value: topSpeedValue !== null ? `${formatNumber(topSpeedValue, 1)} ${speedUnit}` : '—',
+          detail: 'Fastest activity pace'
+        },
+        {
+          label: 'Biggest Climb',
+          value: biggestClimb !== null ? `${formatNumber(biggestClimb, 0)} ${elevationUnit}` : '—',
+          detail: 'Max elevation gain in one ride'
+        },
+        {
+          label: 'Best Week Distance',
+          value: bestWeekDistance !== null ? `${formatNumber(bestWeekDistance, 2)} ${distanceUnit}` : '—',
+          detail: bestWeekLabel || ''
+        },
+        {
+          label: 'Warmest Avg Temp',
+          value: hottestRide !== null ? `${formatNumber(hottestRide, 1)} °${data.units === 'imperial' ? 'F' : 'C'}` : '—',
+          detail: 'Hottest recorded activity'
+        },
+        {
+          label: 'Current Streak',
+          value: currentStreak ? `${currentStreak.length} days` : '—',
+          detail: currentStreak && currentStreak.label ? currentStreak.label : ''
+        },
+        {
+          label: 'Longest Streak',
+          value: longestStreak ? `${longestStreak.length} days` : '—',
+          detail: longestStreak && longestStreak.label ? longestStreak.label : ''
+        }
+      ];
+
+      const derivedStats = [
+        { title: 'Avg Distance / Activity', value: `${formatNumber(avgDistance, 2)} ${distanceUnit}` },
+        { title: 'Avg Elevation / Activity', value: `${formatNumber(avgElevation, 0)} ${elevationUnit}` },
+        { title: 'Avg Time / Activity', value: `${formatNumber(avgTimePerActivity, 2)} hrs` },
+        {
+          title: 'Avg Speed',
+          value: avgSpeedValue !== null ? `${formatNumber(avgSpeedValue, 1)} ${speedUnit}` : '—'
+        },
+        { title: 'Climb Density', value: `${formatNumber(climbDensity, 1)} ${elevationUnit}/${distanceUnit}` },
+        { title: 'Hours per 100 ' + distanceUnit, value: `${formatNumber(timePerDistance ? timePerDistance * 100 : null, 2)} hrs` },
+        {
+          title: 'Avg Hours / Week',
+          value: avgHoursPerWeek !== null ? formatNumber(avgHoursPerWeek, 2) : '—'
+        },
+        { title: 'Rides / Week', value: ridesPerWeek !== null ? formatNumber(ridesPerWeek, 2) : '—' },
+        { title: 'Distance / Week', value: `${formatNumber(distancePerWeek, 2)} ${distanceUnit}` },
+        { title: 'Indoor Distance', value: `${formatNumber(indoorDistance, 2)} ${distanceUnit}` },
+        { title: 'Outdoor Distance', value: `${formatNumber(outdoorDistance, 2)} ${distanceUnit}` },
+        { title: 'Indoor Share', value: indoorShare !== null ? `${formatNumber(indoorShare, 1)}%` : '—' },
+        {
+          title: 'Avg Cadence',
+          value: avgCadenceValue !== null ? `${formatNumber(avgCadenceValue, 0)} rpm` : '—'
+        },
+        {
+          title: 'Avg Power',
+          value: avgPowerValue !== null ? `${formatNumber(avgPowerValue, 0)} W` : '—'
+        },
+        { title: 'Avg Dist / Active Day', value: `${formatNumber(avgDistanceActiveDay, 2)} ${distanceUnit}` },
+        { title: 'Rest Days', value: formatNumber(restDays, 0) },
+        { title: 'Indoor Sessions', value: formatNumber(indoorSessions, 0) },
+        { title: 'Outdoor Sessions', value: formatNumber(outdoorSessions, 0) },
+        { title: 'Unit System', value: data.units === 'imperial' ? 'Imperial' : 'Metric' }
+      ];
+
+      const summaryContent = block.querySelector('.summary-content');
+      summaryContent.innerHTML = `
+        <div class="stat-grid">
+          ${primaryStats.map(stat => `
+            <div class="stat-box">
+              <div class="stat-title">${stat.title}</div>
+              <div class="stat-value">${stat.value}</div>
+            </div>`).join('')}
+        </div>
+        <div class="details-grid">
+          ${spotlightStats.map(item => `
+            <div class="detail-block">
+              <strong>${item.value}</strong>
+              <span>${item.label}${item.detail ? `<br><small>${item.detail}</small>` : ''}</span>
+            </div>`).join('')}
+        </div>
+        <div class="stat-grid derived-grid">
+          ${derivedStats.map(item => `
+            <div class="stat-box">
+              <div class="stat-title">${item.title}</div>
+              <div class="stat-value">${item.value}</div>
+            </div>`).join('')}
+        </div>
+        <div class="charts-row">
+          <div class="mini-chart">
+            <p class="chart-title">Weekly Distance</p>
+            <canvas class="weekly-chart"></canvas>
+          </div>
+          <div class="mini-chart">
+            <p class="chart-title">Indoor vs Outdoor</p>
+            <canvas class="indoor-chart"></canvas>
+          </div>
+        </div>
+      `;
+
+      renderChartsForBlock(block, data);
+    }
+
+    window.onload = () => addSummaryBlock();
+
+    function destroyCharts(block){
+      if (!block._charts) return;
+      if (block._charts.weekly){ block._charts.weekly.destroy(); }
+      if (block._charts.indoor){ block._charts.indoor.destroy(); }
+      block._charts = null;
+    }
+
+    function renderChartsForBlock(block, data){
+      if (typeof Chart === 'undefined') return;
+      destroyCharts(block);
+      const charts = {};
+      const weeklyCanvas = block.querySelector('.weekly-chart');
+      const weeklyData = data.weekly_chart || {};
+      if (weeklyCanvas && weeklyData.labels && weeklyData.labels.length){
+        charts.weekly = new Chart(weeklyCanvas.getContext('2d'), {
+          type:'line',
+          data:{
+            labels: weeklyData.labels,
+            datasets:[{
+              label:'Distance',
+              data: weeklyData.values,
+              borderColor:'#38bdf8',
+              backgroundColor:'rgba(56,189,248,0.2)',
+              borderWidth:2,
+              pointRadius:0,
+              tension:0.35,
+              fill:true
+            }]
+          },
+          options:{
+            responsive:true,
+            scales:{
+              y:{
+                beginAtZero:true,
+                ticks:{color:'#94a3b8'},
+                grid:{color:'rgba(148,163,184,0.15)'}
+              },
+              x:{
+                ticks:{color:'#94a3b8'},
+                grid:{color:'rgba(148,163,184,0.1)'}
+              }
+            },
+            plugins:{legend:{display:false}}
+          }
+        });
+      }
+      const indoorCanvas = block.querySelector('.indoor-chart');
+      const indoorDistance = sanitizeNumber(data.indoor_distance) || 0;
+      const outdoorDistance = sanitizeNumber(data.outdoor_distance) || 0;
+      if (indoorCanvas && (indoorDistance > 0 || outdoorDistance > 0)){
+        charts.indoor = new Chart(indoorCanvas.getContext('2d'), {
+          type:'doughnut',
+          data:{
+            labels:['Indoor','Outdoor'],
+            datasets:[{
+              data:[indoorDistance, outdoorDistance],
+              backgroundColor:['#38bdf8','#f97316'],
+              borderWidth:0
+            }]
+          },
+          options:{
+            cutout:'65%',
+            plugins:{
+              legend:{display:false}
+            }
+          }
+        });
+      }
+      block._charts = charts;
+    }
+  </script>
+  {% if not stats_ready %}
+  <script>
+  (function(){
+    const btn = document.getElementById('historyBuildBtn');
+    const statusEl = document.getElementById('historyBuildStatus');
+    if (!btn || !statusEl) return;
+
+    async function updateStatus(){
+      try {
+        const res = await fetch('/api/refresh_stats/status', { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('status check failed');
+        const job = await res.json();
+        const state = job.status || 'missing';
+        statusEl.textContent = job.message || (state === 'completed' ? 'Stats ready.' : 'Waiting on cache');
+        btn.disabled = state === 'running' || state === 'queued' || state === 'completed';
+        if (state === 'running') {
+          btn.textContent = 'Building stats…';
+        } else if (state === 'queued') {
+          btn.textContent = 'Queued…';
+        } else if (state === 'completed') {
+          btn.textContent = 'Stats ready';
+        } else if (state === 'error') {
+          btn.textContent = 'Retry build';
+        } else {
+          btn.textContent = 'Queue stats build';
+        }
+      } catch (err) {
+        statusEl.textContent = 'Unable to reach the build service.';
+        btn.disabled = false;
+        btn.textContent = 'Queue stats build';
+      }
+    }
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Queueing…';
+      try {
+        const res = await fetch('/api/refresh_stats', { method: 'POST', credentials: 'same-origin' });
+        if (!res.ok) throw new Error('queue failed');
+        const payload = await res.json();
+        statusEl.textContent = payload.status?.message || payload.message || 'Stats build triggered.';
+      } catch (err) {
+        statusEl.textContent = 'Unable to queue the build.';
+        btn.disabled = false;
+        btn.textContent = 'Queue stats build';
+      }
+      updateStatus();
+    });
+
+    const intervalId = setInterval(updateStatus, 5000);
+    window.addEventListener('beforeunload', () => clearInterval(intervalId));
+    updateStatus();
+  })();
+  </script>
+  {% endif %}
+</body>
+</html>

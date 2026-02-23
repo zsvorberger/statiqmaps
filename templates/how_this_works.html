@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% include "_analytics.html" %}
+    <title>Support</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+            color: #0f172a;
+            background: #f8fafc;
+        }
+        body {
+            margin: 0;
+        }
+        .doc-shell {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 48px 20px 80px;
+        }
+        header {
+            position: relative;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        h1 {
+            margin: 0;
+            font-size: 2.4rem;
+            font-weight: 600;
+        }
+        .subtitle {
+            margin: 10px 0 0;
+            color: #475569;
+            font-size: 1rem;
+            max-width: 720px;
+        }
+        .how-works-link {
+            position: absolute;
+            top: 0;
+            right: 0;
+            padding: 6px 12px;
+            border-radius: 999px;
+            border: 1px solid #cbd5f5;
+            color: #0f172a;
+            text-decoration: none;
+            font-size: 0.85rem;
+            background: #fff;
+        }
+        .how-works-link:hover {
+            border-color: #94a3b8;
+        }
+        section {
+            margin-top: 32px;
+        }
+        h2 {
+            margin: 0 0 12px;
+            font-size: 1.25rem;
+        }
+        p {
+            margin: 0 0 12px;
+            color: #1f2937;
+            line-height: 1.6;
+        }
+        ul {
+            margin: 0;
+            padding-left: 18px;
+            color: #1f2937;
+            line-height: 1.6;
+        }
+        li + li {
+            margin-top: 6px;
+        }
+        .note {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px 16px;
+        }
+        .page-list {
+            display: grid;
+            gap: 10px;
+        }
+        .page-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px 16px;
+            background: #fff;
+        }
+        .page-item strong {
+            display: block;
+            margin-bottom: 6px;
+        }
+        @media (max-width: 720px) {
+            .how-works-link {
+                position: static;
+                display: inline-flex;
+                margin-top: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="doc-shell">
+    <header>
+        <a class="how-works-link" href="/">Back to Home</a>
+        <h1>Support</h1>
+        <p class="subtitle">
+            This page explains how the app uses Strava data, how to connect or disconnect your
+            account, and how to get help. It is written for Strava API review and user support.
+        </p>
+    </header>
+
+    <section>
+        <h2>What This App Does</h2>
+        <p>
+            This app provides personal activity summaries, historical trends, and map-based
+            visualizations for athletes who choose to connect their Strava account. It complements
+            Strava and does not replace or compete with it.
+        </p>
+    </section>
+
+    <section>
+        <h2>How Strava Data Is Used</h2>
+        <p>
+            Strava data is accessed only after user authorization and is read-only. No activities
+            are modified or posted back to Strava. Data is shown only to the authenticated athlete.
+        </p>
+        <p>
+            Strava data is used solely to generate personal analytics and visualizations for the
+            authenticated athlete.
+        </p>
+        <p>Examples of data used include:</p>
+        <ul>
+            <li>Distance, time, and elevation totals</li>
+            <li>Routes and activity maps</li>
+            <li>Activity metadata (type, date, location, gear)</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>What We Do NOT Do With Strava Data</h2>
+        <ul>
+            <li>No selling or sharing of Strava data</li>
+            <li>No advertising or profiling based on Strava data</li>
+            <li>No public display of private athlete data</li>
+            <li>No use of Strava data to train external machine-learning models</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>Connecting Your Strava Account</h2>
+        <ul>
+            <li>Click “Connect with Strava.”</li>
+            <li>Authorize access on Strava’s OAuth screen.</li>
+            <li>The app receives permission to read your activity data.</li>
+        </ul>
+        <p>
+            You can choose not to connect Strava. Some features will be limited without Strava data.
+        </p>
+    </section>
+
+    <section>
+        <h2>Disconnecting Strava &amp; Data Removal</h2>
+        <p>You can disconnect at any time:</p>
+        <ul>
+            <li>Revoke access in your Strava account settings (My Apps).</li>
+            <li>Use the in-app disconnect option, if available.</li>
+        </ul>
+        <p>
+            After disconnecting, no further Strava data is accessed. Stored data can be deleted upon
+            request.
+        </p>
+    </section>
+
+    <section>
+        <h2>Data Storage &amp; API Usage</h2>
+        <p>
+            Data is cached responsibly to minimize API calls. Stored data is limited to the
+            authenticated athlete. The app does not bulk scrape or make excessive requests. This app
+            is built to respect the Strava API Agreement and Brand Guidelines.
+        </p>
+    </section>
+
+    <section>
+        <h2>Support &amp; Contact</h2>
+        <p>
+            For support or data removal requests, email
+            <strong>{{ contact_email }}</strong>.
+        </p>
+        <p>
+            Please include your Strava athlete ID (if available) and a short description of the issue.
+        </p>
+    </section>
+</div>
+</body>
+</html>

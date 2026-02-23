@@ -1,0 +1,511 @@
+{% extends "base.html" %}
+{% block title %}Activity Library • Strava Tracker{% endblock %}
+
+{% macro fmt_distance(meters) -%}
+  {%- if meters -%}
+    {{ "%.2f"|format(meters / 1000) }} km
+  {%- else -%}
+    — km
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro fmt_duration(seconds) -%}
+  {%- set total = seconds or 0 -%}
+  {%- set h = (total // 3600)|int -%}
+  {%- set m = ((total % 3600) // 60)|int -%}
+  {%- set s = (total % 60)|int -%}
+  {{ "%02d:%02d:%02d"|format(h, m, s) }}
+{%- endmacro %}
+
+{% macro fmt_speed(ms) -%}
+  {%- if ms -%}
+    {{ "%.1f"|format(ms * 3.6) }} km/h
+  {%- else -%}
+    — km/h
+  {%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-10 space-y-8 text-slate-100">
+  <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div>
+      <p class="text-xs italic text-slate-500">Strava activity data used with athlete permission.</p>
+      <p class="uppercase text-xs tracking-[0.3em] text-slate-500">Activity library</p>
+      <h1 class="text-4xl font-semibold text-white mt-2">Every Ride & Run</h1>
+      <p class="text-slate-400 text-sm">Filter, expand, and explore your entire archive with rich stats, route sketches, and trends.</p>
+    </div>
+    <div class="flex flex-wrap gap-3 items-center">
+      <input id="activitySearch" type="search" placeholder="Search by name or type…" class="bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
+      <select id="sportFilter" class="bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500">
+        <option value="">All Sports</option>
+        {% for sport_name in sport_options %}
+          <option value="{{ sport_name }}" {% if sport and sport == sport_name %}selected{% endif %}>{{ sport_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  {% if activities %}
+  <div id="activityList" class="space-y-6" data-total="{{ total_activities }}" data-loaded="{{ activities|length }}" data-page-size="{{ page_size }}">
+    {% for activity in activities %}
+      {% set dist = activity.distance or 0 %}
+      {% set elev = activity.total_elevation_gain or 0 %}
+      {% set moving = activity.moving_time or 0 %}
+      {% set elapsed = activity.elapsed_time or 0 %}
+      {% set avg_speed = activity.average_speed or 0 %}
+      {% set max_speed = activity.max_speed or 0 %}
+      {% set avg_hr = activity.average_heartrate %}
+      {% set max_hr = activity.max_heartrate %}
+      {% set avg_cad = activity.average_cadence %}
+      {% set splits = activity.splits_metric or [] %}
+      {% set laps = activity.laps or [] %}
+      {% set polyline = activity.map.summary_polyline if activity.map else None %}
+
+      <article class="activity-card group rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-950/70 via-slate-950/40 to-slate-900/10 shadow-2xl shadow-black/30 overflow-hidden transition duration-300 hover:border-sky-500" data-name="{{ activity.name|default('Untitled activity')|lower }}" data-sport="{{ activity.type }}">
+        <div class="p-6 flex flex-col gap-5">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <p class="text-xs uppercase tracking-[0.25em] text-slate-500">{{ activity.type or 'Activity' }}</p>
+              <h2 class="text-2xl font-semibold text-white">{{ activity.name or 'Untitled activity' }}</h2>
+              <p class="text-slate-400 text-sm">{{ activity.start_date_local or activity.start_date }} • {{ fmt_distance(dist) }} • {{ fmt_duration(moving) }}</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <a class="text-sm text-sky-400 hover:text-sky-200" href="{{ url_for('activity_detail', activity_id=activity.id) }}?sport={{ sport|default('total') }}">Open detail page →</a>
+              <button class="toggle-details inline-flex items-center gap-1 text-xs uppercase tracking-[0.22em] text-slate-300 border border-slate-700 rounded-full px-4 py-2 hover:border-sky-500">Expand</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-slate-300">
+            <div class="stat-card bg-slate-900/60 rounded-2xl p-4 border border-slate-800">
+              <p class="text-slate-500 text-xs uppercase tracking-[0.2em]">Distance</p>
+              <p class="text-xl font-semibold text-white">{{ fmt_distance(dist) }}</p>
+            </div>
+            <div class="stat-card bg-slate-900/60 rounded-2xl p-4 border border-slate-800">
+              <p class="text-slate-500 text-xs uppercase tracking-[0.2em]">Elevation</p>
+              <p class="text-xl font-semibold text-white">{{ "%.0f"|format(elev) }} m</p>
+            </div>
+            <div class="stat-card bg-slate-900/60 rounded-2xl p-4 border border-slate-800">
+              <p class="text-slate-500 text-xs uppercase tracking-[0.2em]">Avg speed</p>
+              <p class="text-xl font-semibold text-white">{{ fmt_speed(avg_speed) }}</p>
+            </div>
+            <div class="stat-card bg-slate-900/60 rounded-2xl p-4 border border-slate-800">
+              <p class="text-slate-500 text-xs uppercase tracking-[0.2em]">Max speed</p>
+              <p class="text-xl font-semibold text-white">{{ fmt_speed(max_speed) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-panel hidden border-t border-slate-800/80 bg-slate-950/70" data-splits='{{ splits|tojson }}' data-laps='{{ laps|tojson }}' data-polyline='{{ polyline|default("", true) }}'>
+          <div class="p-6 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-3">
+                <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Vitals</p>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div><span class="text-slate-500">Moving:</span> <span class="text-white">{{ fmt_duration(moving) }}</span></div>
+                  <div><span class="text-slate-500">Elapsed:</span> <span class="text-white">{{ fmt_duration(elapsed) }}</span></div>
+                  <div><span class="text-slate-500">Avg HR:</span> <span class="text-white">{{ avg_hr|default('—') }} bpm</span></div>
+                  <div><span class="text-slate-500">Max HR:</span> <span class="text-white">{{ max_hr|default('—') }} bpm</span></div>
+                  <div><span class="text-slate-500">Avg Cad:</span> <span class="text-white">{{ avg_cad|default('—') }}</span></div>
+                  <div><span class="text-slate-500">Calories:</span> <span class="text-white">{{ activity.kilojoules or activity.calories or '—' }}</span></div>
+                </div>
+              </div>
+              <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-3">
+                <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Route sketch</p>
+                <canvas class="route-canvas w-full h-48 rounded-xl bg-slate-950 border border-slate-800"></canvas>
+                <p class="text-xs text-slate-500">Mini projection drawn from your recorded polyline.</p>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+              <div class="flex items-center justify-between">
+                <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Splits & Trends</p>
+                <span class="text-slate-400 text-xs">pace · climb · cadence</span>
+              </div>
+              <canvas class="split-chart w-full h-60 mt-4"></canvas>
+            </div>
+
+            {% if laps %}
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-slate-500 uppercase text-xs tracking-[0.2em]">
+                    <th class="px-3 py-2 text-left">Lap</th>
+                    <th class="px-3 py-2 text-left">Distance</th>
+                    <th class="px-3 py-2 text-left">Time</th>
+                    <th class="px-3 py-2 text-left">Avg Speed</th>
+                    <th class="px-3 py-2 text-left">Elevation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for lap in laps %}
+                  <tr class="border-t border-slate-800/60">
+                    <td class="px-3 py-2 text-slate-300">{{ loop.index }}</td>
+                    <td class="px-3 py-2 text-white">{{ fmt_distance(lap.distance or 0) }}</td>
+                    <td class="px-3 py-2 text-white">{{ fmt_duration(lap.elapsed_time or 0) }}</td>
+                    <td class="px-3 py-2 text-white">{{ fmt_speed(lap.average_speed or 0) }}</td>
+                    <td class="px-3 py-2 text-white">{{ "%.0f"|format(lap.total_elevation_gain or 0) }} m</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+  <div class="flex flex-col items-center gap-3 pt-4">
+    <button id="loadMoreBtn" class="px-5 py-2.5 rounded-full border border-slate-700 text-xs tracking-[0.3em] uppercase text-slate-200 hover:border-sky-500 transition disabled:opacity-50 disabled:cursor-not-allowed">Load more</button>
+    <p id="loadStatus" class="text-slate-500 text-xs"></p>
+  </div>
+  {% else %}
+    <p class="text-slate-500 text-sm">No activities found.</p>
+  {% endif %}
+
+  <div>
+    <a class="text-slate-500 text-xs uppercase tracking-[0.3em] hover:text-white" href="{{ url_for('sport_hub', sport=sport|default('total')) }}">&larr; Back to {{ sport|default('total')|capitalize }} hub</a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function(){
+  const searchInput = document.getElementById('activitySearch');
+  const sportFilter = document.getElementById('sportFilter');
+  const listEl = document.getElementById('activityList');
+  if(!listEl) return;
+  const loadBtn = document.getElementById('loadMoreBtn');
+  const statusEl = document.getElementById('loadStatus') || { textContent: '' };
+  let totalCount = Number(listEl?.dataset.total || 0);
+  let currentOffset = Number(listEl?.dataset.loaded || 0);
+  const pageSize = Number(listEl?.dataset.pageSize || 25);
+  let currentSearch = '';
+  let currentSport = sportFilter ? sportFilter.value : '';
+  const activeCards = new Set();
+
+  const polylineDecode = (polyline)=>{
+    if(!polyline) return [];
+    let index = 0, lat = 0, lng = 0, coordinates = [];
+    while(index < polyline.length){
+      let result = 0, shift = 0, byte;
+      do {
+        byte = polyline.charCodeAt(index++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+      const deltaLat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lat += deltaLat;
+
+      result = 0; shift = 0;
+      do {
+        byte = polyline.charCodeAt(index++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+      const deltaLng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+      lng += deltaLng;
+
+      coordinates.push([lat * 1e-5, lng * 1e-5]);
+    }
+    return coordinates;
+  };
+
+  function drawRoute(canvas, polyline){
+    if(!canvas || !polyline) return;
+    const ctx = canvas.getContext('2d');
+    const points = polylineDecode(polyline);
+    if(!points.length){
+      ctx.fillStyle = '#1f2937';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#475569';
+      ctx.fillText('No route data', 12, 24);
+      return;
+    }
+    const width = canvas.clientWidth, height = canvas.clientHeight;
+    canvas.width = width * window.devicePixelRatio;
+    canvas.height = height * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+    const lats = points.map(p=>p[0]);
+    const lngs = points.map(p=>p[1]);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+    const padding = 12;
+    const scale = Math.min(
+      (width - padding*2) / (maxLng - minLng || 1),
+      (height - padding*2) / (maxLat - minLat || 1)
+    );
+
+    ctx.lineWidth = 2.2;
+    ctx.lineJoin = 'round';
+    const gradient = ctx.createLinearGradient(0,0,width,height);
+    gradient.addColorStop(0, '#38bdf8');
+    gradient.addColorStop(1, '#a855f7');
+    ctx.strokeStyle = gradient;
+    ctx.beginPath();
+    points.forEach((pt, idx)=>{
+      const x = padding + (pt[1] - minLng) * scale;
+      const y = height - padding - (pt[0] - minLat) * scale;
+      if(idx === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  }
+
+  function buildSplitChart(canvas, splits){
+    if(!canvas || !splits || !splits.length) return;
+    const labels = splits.map((_, idx)=>`Split ${idx+1}`);
+    const paceData = splits.map(split=>{
+      if(split.elapsed_time && split.distance) return (split.elapsed_time / (split.distance/1000));
+      return null;
+    });
+    const elevData = splits.map(split=>split.elevation_gain || 0);
+    new Chart(canvas.getContext('2d'),{
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          {
+            type:'line',
+            label:'pace min/km',
+            data: paceData,
+            borderColor:'#38bdf8',
+            backgroundColor:'rgba(56,189,248,0.15)',
+            tension:0.35,
+            yAxisID:'y',
+            fill:true
+          },
+          {
+            label:'elevation gain m',
+            data: elevData,
+            backgroundColor:'rgba(168,85,247,0.6)',
+            borderRadius:6,
+            yAxisID:'y1'
+          }
+        ]
+      },
+      options:{
+        responsive:true,
+        interaction:{mode:'index', intersect:false},
+        scales:{
+          y:{position:'left', grid:{color:'rgba(148,163,184,0.1)'}},
+          y1:{position:'right', grid:{drawOnChartArea:false}}
+        },
+        plugins:{legend:{labels:{color:'#cbd5f5'}}}
+      }
+    });
+  }
+
+  function attachCardInteractions(card){
+    if(activeCards.has(card)) return;
+    const btn = card.querySelector('.toggle-details');
+    if(btn){
+      btn.addEventListener('click', ()=>{
+        const panel = card.querySelector('.detail-panel');
+        const expanded = !panel.classList.contains('hidden');
+        document.querySelectorAll('.detail-panel').forEach(p=>{
+          if(p !== panel) p.classList.add('hidden');
+        });
+        if(expanded){
+          panel.classList.add('hidden');
+          btn.textContent = 'Expand';
+        }else{
+          panel.classList.remove('hidden');
+          btn.textContent = 'Collapse';
+          if(!panel.dataset.ready){
+            const canvas = panel.querySelector('.route-canvas');
+            drawRoute(canvas, panel.dataset.polyline);
+            const splitCanvas = panel.querySelector('.split-chart');
+            const splits = JSON.parse(panel.dataset.splits || '[]');
+            buildSplitChart(splitCanvas, splits);
+            panel.dataset.ready = '1';
+          }
+          panel.scrollIntoView({behavior:'smooth', block:'start'});
+        }
+      });
+    }
+    activeCards.add(card);
+  }
+
+  document.querySelectorAll('.activity-card').forEach(attachCardInteractions);
+
+  function escapeHtml(str = ''){
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  const fmtDistance = (meters)=> meters ? `${(meters/1000).toFixed(2)} km` : '— km';
+  const fmtDuration = (seconds)=>{
+    const total = Number(seconds) || 0;
+    const h = Math.floor(total/3600).toString().padStart(2,'0');
+    const m = Math.floor((total%3600)/60).toString().padStart(2,'0');
+    const s = Math.floor(total%60).toString().padStart(2,'0');
+    return `${h}:${m}:${s}`;
+  };
+  const fmtSpeed = (ms)=> ms ? `${(ms*3.6).toFixed(1)} km/h` : '— km/h';
+
+  function renderActivityCard(activity){
+    const dist = activity.distance || 0;
+    const elev = activity.total_elevation_gain || 0;
+    const moving = activity.moving_time || 0;
+    const elapsed = activity.elapsed_time || 0;
+    const avg_speed = activity.average_speed || 0;
+    const max_speed = activity.max_speed || 0;
+    const avg_hr = activity.average_heartrate ?? '—';
+    const max_hr = activity.max_heartrate ?? '—';
+    const avg_cad = activity.average_cadence ?? '—';
+    const polyline = (activity.map && activity.map.summary_polyline) || '';
+    const name = escapeHtml(activity.name || 'Untitled activity');
+    const typeLabel = escapeHtml(activity.type || 'Activity');
+    const dateLabel = escapeHtml(activity.start_date_local || activity.start_date || 'Date unknown');
+    const calories = activity.kilojoules || activity.calories || '—';
+    const card = document.createElement('article');
+    card.className = 'activity-card group rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-950/70 via-slate-950/40 to-slate-900/10 shadow-2xl shadow-black/30 overflow-hidden transition duration-300 hover:border-sky-500';
+    card.dataset.name = (activity.name || 'Untitled activity').toLowerCase();
+    card.dataset.sport = activity.type || '';
+    card.innerHTML = `
+      <div class="p-6 flex flex-col gap-5">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <p class="text-xs uppercase tracking-[0.25em] text-slate-500">${typeLabel}</p>
+            <h2 class="text-2xl font-semibold text-white">${name}</h2>
+            <p class="text-slate-400 text-sm">${dateLabel} • ${fmtDistance(dist)} • ${fmtDuration(moving)}</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <a class="text-sm text-sky-400 hover:text-sky-200" href="/activity/${activity.id}">Open detail page →</a>
+            <button class="toggle-details inline-flex items-center gap-1 text-xs uppercase tracking-[0.22em] text-slate-300 border border-slate-700 rounded-full px-4 py-2 hover:border-sky-500">Expand</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-slate-300">
+          <div class="stat-card bg-slate-900/60 rounded-2xl p-4 border border-slate-800">
+            <p class="text-slate-500 text-xs uppercase tracking-[0.2em]">Distance</p>
+            <p class="text-xl font-semibold text-white">${fmtDistance(dist)}</p>
+          </div>
+          <div class="stat-card bg-slate-900/60 rounded-2xl p-4 border border-slate-800">
+            <p class="text-slate-500 text-xs uppercase tracking-[0.2em]">Elevation</p>
+            <p class="text-xl font-semibold text-white">${Math.round(elev)} m</p>
+          </div>
+          <div class="stat-card bg-slate-900/60 rounded-2xl p-4 border border-slate-800">
+            <p class="text-slate-500 text-xs uppercase tracking-[0.2em]">Avg speed</p>
+            <p class="text-xl font-semibold text-white">${fmtSpeed(avg_speed)}</p>
+          </div>
+          <div class="stat-card bg-slate-900/60 rounded-2xl p-4 border border-slate-800">
+            <p class="text-slate-500 text-xs uppercase tracking-[0.2em]">Max speed</p>
+            <p class="text-xl font-semibold text-white">${fmtSpeed(max_speed)}</p>
+          </div>
+        </div>
+      </div>
+      <div class="detail-panel hidden border-t border-slate-800/80 bg-slate-950/70">
+        <div class="p-6 space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-3">
+              <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Vitals</p>
+              <div class="grid grid-cols-2 gap-3 text-sm">
+                <div><span class="text-slate-500">Moving:</span> <span class="text-white">${fmtDuration(moving)}</span></div>
+                <div><span class="text-slate-500">Elapsed:</span> <span class="text-white">${fmtDuration(elapsed)}</span></div>
+                <div><span class="text-slate-500">Avg HR:</span> <span class="text-white">${avg_hr} bpm</span></div>
+                <div><span class="text-slate-500">Max HR:</span> <span class="text-white">${max_hr} bpm</span></div>
+                <div><span class="text-slate-500">Avg Cad:</span> <span class="text-white">${avg_cad}</span></div>
+                <div><span class="text-slate-500">Calories:</span> <span class="text-white">${calories}</span></div>
+              </div>
+            </div>
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 space-y-3">
+              <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Route sketch</p>
+              <canvas class="route-canvas w-full h-48 rounded-xl bg-slate-950 border border-slate-800"></canvas>
+              <p class="text-xs text-slate-500">Mini projection drawn from your recorded polyline.</p>
+            </div>
+          </div>
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+            <div class="flex items-center justify-between">
+              <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Splits & Trends</p>
+              <span class="text-slate-400 text-xs">pace · climb · cadence</span>
+            </div>
+            <canvas class="split-chart w-full h-60 mt-4"></canvas>
+          </div>
+        </div>
+      </div>
+    `;
+    const panel = card.querySelector('.detail-panel');
+    panel.dataset.splits = JSON.stringify(activity.splits_metric || []);
+    panel.dataset.laps = JSON.stringify(activity.laps || []);
+    panel.dataset.polyline = polyline;
+    return card;
+  }
+
+  async function fetchActivities({ reset = false } = {}){
+    if (!listEl) return;
+    if(reset){
+      listEl.innerHTML = '';
+      currentOffset = 0;
+      totalCount = 0;
+      statusEl.textContent = 'Loading…';
+      activeCards.clear();
+    }
+    loadBtn?.setAttribute('disabled','disabled');
+    const params = new URLSearchParams({
+      offset: currentOffset,
+      limit: pageSize,
+    });
+    if(currentSport) params.append('sport', currentSport);
+    if(currentSearch) params.append('search', currentSearch);
+    const res = await fetch(`/api/activities?${params.toString()}`);
+    const payload = await res.json();
+    if(!payload.ok){
+      statusEl.textContent = payload.error || 'Failed to load activities.';
+      return;
+    }
+    totalCount = payload.total;
+    if(reset){
+      currentOffset = 0;
+    }
+    payload.items.forEach(item=>{
+      const card = renderActivityCard(item);
+      listEl.appendChild(card);
+      attachCardInteractions(card);
+      currentOffset += 1;
+    });
+    if(currentOffset >= totalCount){
+      loadBtn?.classList.add('hidden');
+      statusEl.textContent = totalCount ? 'All activities loaded.' : 'No activities match your filters.';
+    }else{
+      loadBtn?.classList.remove('hidden');
+      loadBtn?.removeAttribute('disabled');
+      statusEl.textContent = '';
+    }
+  }
+
+  if(loadBtn){
+    if(currentOffset >= totalCount){
+      loadBtn.classList.add('hidden');
+    }
+    loadBtn.addEventListener('click', ()=>{
+      fetchActivities().catch(()=>{ statusEl.textContent = 'Failed to load more activities.'; });
+    });
+  }
+
+  if(searchInput){
+    let debounce;
+    searchInput.addEventListener('input', ()=>{
+      clearTimeout(debounce);
+      debounce = setTimeout(()=>{
+        currentSearch = searchInput.value.trim();
+        fetchActivities({reset:true}).catch(()=>{ statusEl.textContent = 'Failed to load activities.'; });
+      }, 300);
+    });
+  }
+
+  if(sportFilter){
+    sportFilter.addEventListener('change', ()=>{
+      currentSport = sportFilter.value;
+      fetchActivities({reset:true}).catch(()=>{ statusEl.textContent = 'Failed to load activities.'; });
+    });
+  }
+})();
+</script>
+{% endblock %}

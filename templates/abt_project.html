@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% include "_analytics.html" %}
+    <title>About This Project</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+            background: #f9fafb;
+            color: #111827;
+            margin: 0;
+            padding: 0;
+        }
+        .shell {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+        .card {
+            background: #fff;
+            border-radius: 24px;
+            border: 1px solid #e5e7eb;
+            padding: 28px;
+            box-shadow: 0 20px 45px rgba(15,23,42,0.08);
+        }
+        a.back-link {
+            text-decoration: none;
+            color: #2563eb;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #4338ca;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .section + .section {
+            margin-top: 24px;
+        }
+        .timeline-item {
+            border-left: 2px solid #e5e7eb;
+            padding-left: 16px;
+            margin-left: 6px;
+            margin-top: 18px;
+        }
+        .timeline-item:first-of-type {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+<a class="how-works-link" href="/how-this-works">Support</a>
+<div class="shell">
+    <a href="{{ url_for('index') }}" class="back-link">&#8592; Back to dashboard</a>
+    <div class="card" style="margin-top: 24px;">
+        <div class="pill">Profile &amp; Settings</div>
+        <h1 style="margin:18px 0 10px;font-size:2.6rem;">About This Project</h1>
+        <p style="color:#6b7280;margin:0 0 22px;">This started as a side project I built for fun when I wasn&rsquo;t doing schoolwork. I like cycling, I like looking at my stats, and coding this was genuinely fun. It grew into something I actually use.</p>
+
+        <div class="section">
+            <h2 style="margin-bottom:8px;">What it does</h2>
+            <ul style="margin:0;padding-left:20px;color:#4b5563;line-height:1.6;">
+                <li>Dashboards that pull out trends I care about (season comparisons, big effort days, and pace changes).</li>
+                <li>Tools like coverage maps, route building, and basic gear tracking.</li>
+                <li>A simple place to check stats without digging through Strava menus.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2 style="margin-bottom:8px;">Why I built it</h2>
+            <p style="margin:0;color:#4b5563;">Strava is great, but I wanted more control over how I view my data. This is my way to learn, tinker, and keep improving a tool I actually use.</p>
+        </div>
+
+        <div class="section">
+            <h2 style="margin-bottom:8px;">Want to share feedback?</h2>
+            <p style="margin:0;color:#4b5563;">If you spot bugs or want a feature, drop a note in the Questions &amp; Info section.</p>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ sport_label }} • Strava Tracker{% endblock %}
+
+{% block content %}
+<h1 class="text-4xl font-extrabold mb-2">{{ sport_label }}</h1>
+<p class="text-neutral-400 mb-6">Browse features for this sport.</p>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <a class="rounded-xl border border-neutral-800 p-4 hover:border-blue-500 hover:bg-neutral-800 hover:text-white"
+     href="{{ url_for('all_time_stats', sport=sport) }}">All Time Stats</a>
+
+  <a class="rounded-xl border border-neutral-800 p-4 hover:border-blue-500 hover:bg-neutral-800 hover:text-white"
+     href="{{ url_for('lifetime', sport=sport) }}">Compare Stats</a>
+
+  <a class="rounded-xl border border-neutral-800 p-4 hover:border-blue-500 hover:bg-neutral-800 hover:text-white"
+     href="{{ url_for('activity_list', sport=sport) }}">Activity List</a>
+
+  <a class="rounded-xl border border-neutral-800 p-4 hover:border-blue-500 hover:bg-neutral-800"
+     href="{{ url_for('map_page', sport=sport) }}">Map</a>
+   
+  <a class="rounded-xl border border-neutral-800 p-4 hover:border-blue-500 hover:bg-neutral-800 hover:text-white"
+     href="{{ url_for('personal_best', sport=sport) }}">Personal Best</a>
+
+  <a class="rounded-xl border border-neutral-800 p-4 hover:border-blue-500 hover:bg-neutral-800 hover:text-white"
+     href="{{ url_for('rankings', sport=sport) }}">Rankings</a>
+
+  {% if sport == 'bike' %}
+  <a class="rounded-xl border border-neutral-800 p-4 hover:border-blue-500 hover:bg-neutral-800 hover:text-white"
+     href="{{ url_for('gear_tracker_page', sport=sport) }}">Gear Tracker</a>
+  {% endif %}
+
+  <a class="rounded-xl border border-neutral-800 p-4 hover:border-blue-500 hover:bg-neutral-800 hover:text-white"
+     href="{{ url_for('heatmaps', sport=sport) }}">Heatmaps</a>
+
+  <a class="rounded-xl border border-neutral-800 p-4 hover:border-blue-500 hover:bg-neutral-800 hover:text-white"
+     href="{{ url_for('route_builder', sport=sport) }}">Route Builder</a>
+
+  <a class="rounded-xl border border-neutral-800 p-4 hover:border-blue-500 hover:bg-neutral-800 hover:text-white"
+     href="{{ url_for('maintenance_page', sport=sport) }}">Maintenance Tracker</a>
+</div>
+{% endblock %}

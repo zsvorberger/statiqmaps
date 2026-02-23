@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+    {% include "_analytics.html" %}
+  <title>Graphs + Analysis Studio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #05070f;
+      --panel: #0f172a;
+      --panel-alt: #101935;
+      --border: #1d2642;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #3b82f6;
+      --danger: #f43f5e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+    }
+    h1, h2, h3, h4 { margin: 0; font-weight: 600; }
+    a { color: var(--accent); }
+    .page-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+      align-items: center;
+    }
+    .page-header p { max-width: 700px; margin: 6px 0 0; color: var(--muted); }
+    .tagline { font-size: 0.95rem; color: var(--muted); }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 360px) 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 25px 60px rgba(3, 7, 18, 0.45);
+    }
+    .card + .card { margin-top: 20px; }
+    .quick-presets .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .preset-btn {
+      border: 1px solid transparent;
+      border-radius: 14px;
+      padding: 14px;
+      text-align: left;
+      background: var(--panel-alt);
+      cursor: pointer;
+      transition: 0.2s ease;
+      min-height: 80px;
+    }
+    .preset-btn strong { display: block; font-size: 0.95rem; margin-bottom: 4px; }
+    .preset-btn span { color: var(--muted); font-size: 0.8rem; }
+    .preset-btn:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .control-panel section + section { margin-top: 18px; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    label { font-size: 0.75rem; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+    select, input[type="date"], input[type="text"], input[type="number"], input[type="color"], input[type="range"] {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #020617;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    input[type="color"] { padding: 0; height: 38px; }
+    .grid { display: grid; gap: 12px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    @media (max-width: 680px) { .grid.two, .grid.three { grid-template-columns: 1fr; } }
+    .series-list { display: flex; flex-direction: column; gap: 12px; }
+    .series-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(15, 23, 42, 0.7);
+      position: relative;
+    }
+    .series-card h4 { font-size: 0.9rem; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+    .series-card button.remove {
+      background: transparent;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .series-actions { display: flex; gap: 8px; }
+    .chip-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .chip-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .control-panel button.primary {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      background: linear-gradient(120deg, #2563eb, #8b5cf6);
+      border: none;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .control-panel button.secondary {
+      width: 100%;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px dashed var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .control-panel button.secondary:hover { color: var(--accent); border-color: var(--accent); }
+    .toggle {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .toggle input { width: 16px; height: 16px; }
+    .preview-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 640px;
+    }
+    .preview-header { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .preview-actions { display: flex; gap: 8px; }
+    .preview-actions button {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .preview-actions button:hover { border-color: var(--accent); }
+    .chart-container { flex: 1; min-height: 420px; }
+    canvas { width: 100% !important; height: 100% !important; }
+    details summary { cursor: pointer; color: var(--muted); margin-bottom: 12px; }
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .metric-pill { border: 1px solid var(--border); padding: 12px; border-radius: 12px; background: rgba(15, 23, 42, 0.65); }
+    .metric-pill span { font-size: 0.75rem; color: var(--muted); }
+    .empty-copy { font-size: 0.85rem; color: var(--muted); text-align: center; padding: 12px; border: 1px dashed var(--border); border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <a href="/how-this-works" style="position:fixed;top:18px;right:18px;padding:6px 12px;border-radius:999px;border:1px solid rgba(148,163,184,0.6);color:#0f172a;text-decoration:none;font-size:0.8rem;background:#fff;">Support</a>
+  <header class="page-header">
+    <div>
+      <div style="font-size:0.72rem;color:var(--muted);font-style:italic;margin-bottom:6px;">
+        Strava activity data used with athlete permission.
+      </div>
+      <h1>Graphs + Analysis Studio</h1>
+      <p>Build any chart you can imagine: layer multiple metrics, dual axes, stacked comparisons, smoothing, and more. Think Excel pivot tables, but tuned for Strava.</p>
+    </div>
+    <div class="tagline">Tip: Combine presets with the builder to jump-start more complex stories.</div>
+  </header>
+
+  <section class="card quick-presets">
+    <div class="section-head">
+      <h3>Quick Presets</h3>
+      <small style="color:var(--muted)">One click starting points</small>
+    </div>
+    <div class="preset-grid">
+      <button class="preset-btn" data-preset="yearly_distance">
+        <strong>Yearly Distance</strong>
+        <span>Sum distance grouped by year (bar)</span>
+      </button>
+      <button class="preset-btn" data-preset="distance_vs_elev">
+        <strong>Distance vs Elevation</strong>
+        <span>Monthly trend with dual axes</span>
+      </button>
+      <button class="preset-btn" data-preset="speed_hr_effort">
+        <strong>Speed + Heart Rate</strong>
+        <span>Form check: Avg speed vs HR</span>
+      </button>
+      <button class="preset-btn" data-preset="training_load">
+        <strong>Training Load</strong>
+        <span>Hours + Relative Effort stacked</span>
+      </button>
+      <button class="preset-btn" data-preset="bike_compare">
+        <strong>Bike Comparison</strong>
+        <span>Split by bike in the filter panel</span>
+      </button>
+    </div>
+  </section>
+
+  <div class="layout">
+    <aside class="card control-panel">
+      <section>
+        <div class="section-head"><h3>Filters</h3></div>
+        <div class="grid two">
+          <div>
+            <label>From Date</label>
+            <input type="date" id="date_from" />
+          </div>
+          <div>
+            <label>To Date</label>
+            <input type="date" id="date_to" />
+          </div>
+          <div>
+            <label>Bike</label>
+            <select id="gear_id">
+              <option value="">All bikes</option>
+              {% for b in bikes %}
+                <option value="{{ b }}">{{ b }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label>Activity Type</label>
+            <select id="activity_type">
+              <option value="">All types</option>
+              {% for t in types %}
+                <option value="{{ t }}">{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <label class="toggle" style="margin-top:10px;"><input type="checkbox" id="only_outdoor" />Only outdoor rides</label>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h3>Series Builder</h3>
+          <div class="series-actions">
+            <button type="button" class="chip-btn" id="duplicateSeries">Duplicate</button>
+            <button type="button" class="chip-btn" id="clearSeries">Clear</button>
+          </div>
+        </div>
+        <div class="series-list" id="seriesList"></div>
+        <div class="empty-copy" id="seriesEmpty" style="display:none;">Add a metric to start designing your chart.</div>
+        <button type="button" class="secondary" id="addSeries">+ Add Metric / Series</button>
+      </section>
+
+      <section>
+        <div class="section-head"><h3>Chart Options</h3></div>
+        <div class="grid two">
+          <div>
+            <label>Chart Type</label>
+            <select id="chartType">
+              <option value="line">Line</option>
+              <option value="bar">Column / Bar</option>
+              <option value="area">Area</option>
+              <option value="mixed" selected>Mixed</option>
+              <option value="scatter">Scatter</option>
+              <option value="radar">Radar</option>
+              <option value="pie">Pie</option>
+              <option value="doughnut">Doughnut</option>
+              <option value="polarArea">Polar Area</option>
+            </select>
+          </div>
+          <div>
+            <label>Grouping</label>
+            <select id="grouping">
+              <option value="monthly" selected>Monthly</option>
+              <option value="weekly">Weekly</option>
+              <option value="daily">Daily</option>
+              <option value="yearly">Yearly</option>
+              <option value="none">Per activity</option>
+            </select>
+          </div>
+          <div>
+            <label>Smoothing window</label>
+            <input type="number" id="smoothWindow" min="0" max="24" value="0" />
+          </div>
+          <div>
+            <label>Legend</label>
+            <select id="legendPosition">
+              <option value="top">Top</option>
+              <option value="bottom">Bottom</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select>
+          </div>
+          <div>
+            <label>Line curvature</label>
+            <input type="range" id="lineCurvature" min="0" max="0.6" step="0.05" value="0.25" />
+          </div>
+          <div>
+            <label>Point size</label>
+            <input type="number" id="pointSize" min="0" max="12" value="4" />
+          </div>
+        </div>
+        <div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;">
+          <label class="toggle"><input type="checkbox" id="stackToggle" />Stack compatible series</label>
+          <label class="toggle"><input type="checkbox" id="beginZero" checked />Force y-axis from zero</label>
+          <label class="toggle"><input type="checkbox" id="gridX" checked />Show X grid</label>
+          <label class="toggle"><input type="checkbox" id="gridY" checked />Show Y grid</label>
+        </div>
+        <div class="grid two" style="margin-top:12px;">
+          <div>
+            <label>X axis label</label>
+            <input type="text" id="xLabel" placeholder="e.g. Month" />
+          </div>
+          <div>
+            <label>Primary axis label</label>
+            <input type="text" id="primaryLabel" placeholder="Distance" />
+          </div>
+          <div>
+            <label>Secondary axis label</label>
+            <input type="text" id="secondaryLabel" placeholder="Speed" />
+          </div>
+        </div>
+        <div class="grid two" style="margin-top:12px;">
+          <div>
+            <label>Primary axis min / max</label>
+            <div style="display:flex; gap:8px;">
+              <input type="number" id="primaryMin" placeholder="Auto" style="flex:1;" />
+              <input type="number" id="primaryMax" placeholder="Auto" style="flex:1;" />
+            </div>
+          </div>
+          <div>
+            <label>Secondary axis min / max</label>
+            <div style="display:flex; gap:8px;">
+              <input type="number" id="secondaryMin" placeholder="Auto" style="flex:1;" />
+              <input type="number" id="secondaryMax" placeholder="Auto" style="flex:1;" />
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
+          <label class="toggle"><input type="checkbox" id="logPrimary" />Log scale primary axis</label>
+          <label class="toggle"><input type="checkbox" id="logSecondary" />Log scale secondary axis</label>
+        </div>
+      </section>
+
+      <button class="primary" id="run_btn">Render graph</button>
+    </aside>
+
+    <section class="card preview-panel">
+      <div class="preview-header">
+        <div>
+          <h2>Visualization</h2>
+          <p class="tagline" id="statusText">Choose metrics + click render.</p>
+        </div>
+        <div class="preview-actions">
+          <button type="button" id="resetZoom">Reset zoom</button>
+          <button type="button" id="downloadPNG">Save PNG</button>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="graphCanvas" height="520"></canvas>
+      </div>
+    </section>
+  </div>
+
+  <section class="card metric-reference">
+    <details>
+      <summary>Metric cheat-sheet (click to expand)</summary>
+      <div class="metric-grid">
+        {% for metric in metrics %}
+          <div class="metric-pill">
+            <strong>{{ metric.label }}</strong>
+            <p style="margin:4px 0 8px; color:var(--muted); font-size:0.85rem;">{{ metric.description }}</p>
+            <span>Default aggregation: {{ metric.default_agg|upper }} · Unit: {{ metric.unit }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </details>
+  </section>
+
+  <script>
+    const METRICS = {{ metrics|tojson }};
+    const METRIC_LOOKUP = Object.fromEntries(METRICS.map(m => [m.key, m]));
+    const PRESETS = {
+      yearly_distance: {
+        title: 'Yearly Distance',
+        grouping: 'yearly',
+        chartType: 'bar',
+        series: [{ metric: 'distance_km', aggregation: 'sum', label: 'Distance', color: '#60a5fa' }]
+      },
+      distance_vs_elev: {
+        title: 'Distance vs Elevation',
+        grouping: 'monthly',
+        chartType: 'mixed',
+        series: [
+          { metric: 'distance_km', aggregation: 'sum', label: 'Distance', color: '#34d399' },
+          { metric: 'elev_m', aggregation: 'sum', label: 'Elevation', axis: 'secondary', color: '#fb923c' }
+        ]
+      },
+      speed_hr_effort: {
+        title: 'Speed & Heart Rate',
+        grouping: 'monthly',
+        chartType: 'mixed',
+        smoothing: 3,
+        series: [
+          { metric: 'avg_speed_kmh', aggregation: 'avg', label: 'Avg Speed', color: '#818cf8' },
+          { metric: 'average_heartrate', aggregation: 'avg', label: 'Avg HR', axis: 'secondary', color: '#f472b6' }
+        ]
+      },
+      training_load: {
+        grouping: 'weekly',
+        chartType: 'area',
+        stacked: true,
+        series: [
+          { metric: 'hours', aggregation: 'sum', label: 'Hours', color: '#22d3ee', chart: 'area' },
+          { metric: 'relative_effort', aggregation: 'sum', label: 'Relative Effort', color: '#facc15', chart: 'area', axis: 'secondary' }
+        ]
+      },
+      bike_compare: {
+        grouping: 'monthly',
+        chartType: 'bar',
+        series: [
+          { metric: 'distance_km', aggregation: 'sum', label: 'Distance', color: '#60a5fa' }
+        ]
+      }
+    };
+    const palette = ['#60a5fa','#34d399','#facc15','#f472b6','#a855f7','#06b6d4','#f97316','#4ade80'];
+    let chart;
+    let seriesState = [];
+
+    const seriesListEl = document.getElementById('seriesList');
+    const seriesEmptyEl = document.getElementById('seriesEmpty');
+
+    function getNumberInputValue(id) {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      const raw = el.value;
+      return raw === '' ? null : Number(raw);
+    }
+
+    function hexToRgba(hex, alpha) {
+      const clean = hex.replace('#','');
+      const bigint = parseInt(clean, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function createSeries(config = {}) {
+      const baseMetric = config.metric || (METRICS[0]?.key ?? 'distance_km');
+      const defaultAgg = config.aggregation || METRIC_LOOKUP[baseMetric]?.default_agg || 'sum';
+      return {
+        id: crypto.randomUUID(),
+        metric: baseMetric,
+        aggregation: defaultAgg,
+        label: config.label || METRIC_LOOKUP[baseMetric]?.label || baseMetric,
+        color: config.color || palette[seriesState.length % palette.length],
+        axis: config.axis || 'primary',
+        chart: config.chart || '',
+        customAggregation: Boolean(config.aggregation),
+      };
+    }
+
+    function addSeries(config) {
+      seriesState.push(createSeries(config));
+      renderSeriesList();
+    }
+
+    function duplicateSeries() {
+      if (!seriesState.length) return;
+      const last = seriesState[seriesState.length - 1];
+      addSeries({ ...last, label: `${last.label} copy`, color: palette[Math.floor(Math.random()*palette.length)] });
+    }
+
+    function clearSeries() {
+      seriesState = [];
+      renderSeriesList();
+    }
+
+    function removeSeries(id) {
+      seriesState = seriesState.filter(s => s.id !== id);
+      renderSeriesList();
+    }
+
+    function renderSeriesList() {
+      seriesListEl.innerHTML = '';
+      if (!seriesState.length) {
+        seriesEmptyEl.style.display = 'block';
+        return;
+      }
+      seriesEmptyEl.style.display = 'none';
+      seriesState.forEach((series, idx) => {
+        const card = document.createElement('div');
+        card.className = 'series-card';
+        card.innerHTML = `
+          <h4>Series ${idx + 1} <button type="button" class="remove">Remove</button></h4>
+          <div class="grid two">
+            <div>
+              <label>Metric</label>
+              <select class="metric"></select>
+            </div>
+            <div>
+              <label>Aggregation</label>
+              <select class="aggregation">
+                <option value="sum">Sum</option>
+                <option value="avg">Average</option>
+                <option value="max">Max</option>
+                <option value="min">Min</option>
+                <option value="median">Median</option>
+                <option value="count">Count</option>
+                <option value="cumulative">Cumulative</option>
+              </select>
+            </div>
+            <div>
+              <label>Series display</label>
+              <select class="series-type">
+                <option value="">Auto</option>
+                <option value="line">Line</option>
+                <option value="bar">Column</option>
+                <option value="area">Area</option>
+                <option value="points">Points</option>
+                <option value="scatter">Scatter</option>
+              </select>
+            </div>
+            <div>
+              <label>Series label</label>
+              <input type="text" class="series-label" placeholder="Legend label" />
+            </div>
+            <div>
+              <label>Color</label>
+              <input type="color" class="series-color" />
+            </div>
+            <div>
+              <label>Axis</label>
+              <select class="axis">
+                <option value="primary">Primary</option>
+                <option value="secondary">Secondary</option>
+              </select>
+            </div>
+          </div>
+        `;
+        seriesListEl.appendChild(card);
+        const metricSelect = card.querySelector('.metric');
+        METRICS.forEach((metric) => {
+          const option = document.createElement('option');
+          option.value = metric.key;
+          option.textContent = metric.label;
+          metricSelect.appendChild(option);
+        });
+        metricSelect.value = series.metric;
+        const aggSelect = card.querySelector('.aggregation');
+        aggSelect.value = series.aggregation;
+        const typeSelect = card.querySelector('.series-type');
+        typeSelect.value = series.chart || '';
+        const labelInput = card.querySelector('.series-label');
+        labelInput.value = series.label || '';
+        const colorInput = card.querySelector('.series-color');
+        colorInput.value = series.color;
+        const axisSelect = card.querySelector('.axis');
+        axisSelect.value = series.axis;
+
+        card.querySelector('.remove').addEventListener('click', () => removeSeries(series.id));
+        metricSelect.addEventListener('change', (e) => {
+          const newMetric = e.target.value;
+          const newDefaultAgg = METRIC_LOOKUP[newMetric]?.default_agg || 'sum';
+          const prevDefault = METRIC_LOOKUP[series.metric]?.default_agg || 'sum';
+          series.metric = newMetric;
+          if (!series.customAggregation || series.aggregation === prevDefault) {
+            series.aggregation = newDefaultAgg;
+            aggSelect.value = newDefaultAgg;
+            series.customAggregation = false;
+          }
+          if (!series.label || series.label === METRIC_LOOKUP[series.metric]?.label) {
+            labelInput.value = METRIC_LOOKUP[newMetric]?.label || newMetric;
+            series.label = labelInput.value;
+          }
+        });
+        aggSelect.addEventListener('change', (e) => {
+          series.aggregation = e.target.value;
+          series.customAggregation = true;
+        });
+        typeSelect.addEventListener('change', (e) => {
+          series.chart = e.target.value;
+        });
+        labelInput.addEventListener('input', (e) => {
+          series.label = e.target.value;
+        });
+        colorInput.addEventListener('input', (e) => {
+          series.color = e.target.value;
+        });
+        axisSelect.addEventListener('change', (e) => {
+          series.axis = e.target.value;
+        });
+      });
+    }
+
+    async function fetchGraph() {
+      if (!seriesState.length) {
+        addSeries();
+        return;
+      }
+      const payload = {
+        date_from: document.getElementById('date_from').value || null,
+        date_to: document.getElementById('date_to').value || null,
+        gear_id: document.getElementById('gear_id').value || null,
+        activity_type: document.getElementById('activity_type').value || null,
+        only_outdoor: document.getElementById('only_outdoor').checked,
+        grouping: document.getElementById('grouping').value,
+        chart_type: document.getElementById('chartType').value,
+        smoothing_window: document.getElementById('smoothWindow').value,
+        stacked: document.getElementById('stackToggle').checked,
+        series: seriesState.map((s) => ({
+          id: s.id,
+          y_axis: s.metric,
+          aggregation: s.aggregation,
+          label: s.label,
+          color: s.color,
+          secondary: s.axis === 'secondary',
+          chart: s.chart,
+        }))
+      };
+      try {
+        document.getElementById('statusText').textContent = 'Loading…';
+        const res = await fetch('/api/graph_data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        renderChart(data);
+        document.getElementById('statusText').textContent = data.labels.length ? `${data.labels.length} data points loaded` : 'No data for this combination';
+      } catch (err) {
+        console.error(err);
+        document.getElementById('statusText').textContent = 'Error loading data';
+      }
+    }
+
+    function resolveDatasetType(seriesType, globalType) {
+      const forced = ['pie', 'doughnut', 'polarArea', 'radar'];
+      if (forced.includes(globalType)) return globalType;
+      const globalBase = (globalType === 'mixed' || globalType === 'area') ? 'line' : globalType;
+      switch (seriesType) {
+        case 'bar':
+          return 'bar';
+        case 'scatter':
+          return 'scatter';
+        case 'points':
+        case 'area':
+        case 'line':
+          return 'line';
+        default:
+          return globalBase === 'bar' ? 'bar' : (globalBase === 'scatter' ? 'scatter' : 'line');
+      }
+    }
+
+    function buildDatasetConfig(data) {
+      const globalType = document.getElementById('chartType').value;
+      const isPieFamily = ['pie', 'doughnut', 'polarArea'].includes(globalType);
+      const isRadar = globalType === 'radar';
+      const isCartesian = !(isPieFamily || isRadar);
+      const stacked = isCartesian && globalType !== 'scatter' && document.getElementById('stackToggle').checked;
+      const curvature = parseFloat(document.getElementById('lineCurvature').value || 0);
+      const pointSize = parseInt(document.getElementById('pointSize').value || 3, 10);
+      const beginZero = document.getElementById('beginZero').checked;
+      const primaryMin = getNumberInputValue('primaryMin');
+      const primaryMax = getNumberInputValue('primaryMax');
+      const secondaryMin = getNumberInputValue('secondaryMin');
+      const secondaryMax = getNumberInputValue('secondaryMax');
+      const logPrimary = document.getElementById('logPrimary').checked && isCartesian;
+      const logSecondary = document.getElementById('logSecondary').checked && isCartesian;
+      const axisTitles = {
+        x: document.getElementById('xLabel').value,
+        primary: document.getElementById('primaryLabel').value,
+        secondary: document.getElementById('secondaryLabel').value,
+      };
+
+      const datasets = data.datasets.map((ds, idx) => {
+        const source = seriesState.find(s => s.id === ds.series_id) || seriesState[idx] || {};
+        const baseColor = source.color || palette[idx % palette.length];
+        const resolvedType = resolveDatasetType(source.chart, globalType);
+        const baseValues = Array.isArray(ds.data) ? ds.data.slice() : [];
+        const config = {
+          ...ds,
+          data: baseValues,
+          borderColor: baseColor,
+          backgroundColor: hexToRgba(baseColor, resolvedType === 'bar' ? 0.85 : 0.3),
+          borderWidth: isPieFamily ? 1 : 2,
+          pointRadius: resolvedType === 'bar' ? 0 : pointSize,
+          pointHoverRadius: Math.max(pointSize + 2, 4),
+          tension: curvature,
+        };
+
+        if (isCartesian) {
+          config.yAxisID = source.axis === 'secondary' ? 'y2' : 'y';
+        }
+
+        if (stacked && isCartesian && ['line', 'bar'].includes(resolvedType)) {
+          config.stack = 'stacked';
+        }
+
+        if (source.chart === 'area' || (globalType === 'area' && resolvedType === 'line')) {
+          config.fill = true;
+        }
+        if (source.chart === 'points') {
+          config.showLine = false;
+          config.pointRadius = Math.max(pointSize, 3);
+        }
+
+        if (resolvedType === 'scatter') {
+          config.type = 'scatter';
+          config.showLine = false;
+          config.pointRadius = Math.max(pointSize, 4);
+          config.data = data.labels.map((label, i) => ({ x: label, y: baseValues[i] }));
+        } else if (resolvedType === 'radar') {
+          config.type = 'radar';
+          config.fill = true;
+          config.backgroundColor = hexToRgba(baseColor, 0.25);
+        } else if (isPieFamily) {
+          config.type = globalType;
+          config.backgroundColor = data.labels.map((_, sliceIdx) => palette[(sliceIdx + idx) % palette.length]);
+          delete config.yAxisID;
+          delete config.stack;
+        } else {
+          config.type = resolvedType;
+        }
+
+        return config;
+      });
+
+      const showSecondary = isCartesian && datasets.some(ds => ds.yAxisID === 'y2');
+      const ctx = document.getElementById('graphCanvas').getContext('2d');
+      if (chart) chart.destroy();
+
+      const baseChartType = (globalType === 'mixed' || globalType === 'area') ? 'line' : globalType;
+      const options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: isCartesian ? 'index' : 'nearest', intersect: !isCartesian },
+        plugins: {
+          legend: { position: document.getElementById('legendPosition').value },
+          tooltip: {
+            callbacks: {
+              label(ctx) {
+                const raw = ctx.raw;
+                const value = typeof raw === 'object' ? raw.y ?? raw : raw;
+                return `${ctx.dataset.label}: ${Number.parseFloat(value ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+              }
+            }
+          },
+        }
+      };
+
+      if (isCartesian) {
+        options.scales = {
+          x: {
+            stacked: stacked && datasets.some(ds => ds.type === 'bar'),
+            grid: { display: document.getElementById('gridX').checked },
+            title: { display: Boolean(axisTitles.x), text: axisTitles.x },
+          },
+          y: {
+            stacked,
+            beginAtZero: beginZero && !logPrimary && primaryMin === null,
+            type: logPrimary ? 'logarithmic' : 'linear',
+            grid: { display: document.getElementById('gridY').checked },
+            title: { display: Boolean(axisTitles.primary), text: axisTitles.primary },
+          },
+        };
+        if (primaryMin !== null) options.scales.y.min = primaryMin;
+        if (primaryMax !== null) options.scales.y.max = primaryMax;
+
+        if (showSecondary) {
+          options.scales.y2 = {
+            position: 'right',
+            beginAtZero: beginZero && !logSecondary && secondaryMin === null,
+            type: logSecondary ? 'logarithmic' : 'linear',
+            grid: { display: false },
+            title: { display: Boolean(axisTitles.secondary), text: axisTitles.secondary },
+          };
+          if (secondaryMin !== null) options.scales.y2.min = secondaryMin;
+          if (secondaryMax !== null) options.scales.y2.max = secondaryMax;
+        }
+
+        options.plugins.zoom = {
+          zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' },
+          pan: { enabled: true, mode: 'x' }
+        };
+      } else if (isRadar) {
+        options.scales = {
+          r: {
+            beginAtZero: beginZero,
+            min: primaryMin ?? undefined,
+            max: primaryMax ?? undefined,
+            grid: { color: '#1f2937' },
+            angleLines: { color: '#1f2937' },
+            pointLabels: { color: '#94a3b8' },
+          }
+        };
+      }
+
+      chart = new Chart(ctx, {
+        type: baseChartType,
+        data: { labels: data.labels, datasets },
+        options,
+      });
+    }
+
+    function renderChart(data) {
+      if (!data.datasets?.length) {
+        if (chart) chart.destroy();
+        document.getElementById('statusText').textContent = 'No data available for this query';
+        return;
+      }
+      buildDatasetConfig(data);
+    }
+
+    document.getElementById('run_btn').addEventListener('click', fetchGraph);
+    document.getElementById('addSeries').addEventListener('click', () => addSeries());
+    document.getElementById('clearSeries').addEventListener('click', clearSeries);
+    document.getElementById('duplicateSeries').addEventListener('click', duplicateSeries);
+
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const preset = PRESETS[btn.dataset.preset];
+        if (!preset) return;
+        seriesState = [];
+        (preset.series || []).forEach(cfg => seriesState.push(createSeries(cfg)));
+        renderSeriesList();
+        document.getElementById('grouping').value = preset.grouping || 'monthly';
+        document.getElementById('chartType').value = preset.chartType || 'mixed';
+        document.getElementById('smoothWindow').value = preset.smoothing || 0;
+        document.getElementById('stackToggle').checked = Boolean(preset.stacked);
+        fetchGraph();
+      });
+    });
+
+    document.getElementById('resetZoom').addEventListener('click', () => {
+      if (!chart) return;
+      if (chart.options?.plugins?.zoom) {
+        chart.resetZoom();
+      }
+    });
+
+    document.getElementById('downloadPNG').addEventListener('click', () => {
+      if (!chart) return;
+      const link = document.createElement('a');
+      link.href = chart.toBase64Image('image/png', 1);
+      link.download = 'strava-graph.png';
+      link.click();
+    });
+
+    // Initialize with a default combo and render
+    addSeries({ metric: 'distance_km', aggregation: 'sum', label: 'Distance', color: '#60a5fa' });
+    fetchGraph();
+  </script>
+</body>
+</html>

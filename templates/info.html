@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% include "_analytics.html" %}
+    <title>Bike Info Hub</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f9fafb;
+            color: #111827;
+            margin: 0;
+            padding: 0;
+        }
+        .info-shell {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+        a.back-link {
+            text-decoration: none;
+            color: #2563eb;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .card {
+            background: #fff;
+            border-radius: 20px;
+            border: 1px solid #e5e7eb;
+            padding: 24px;
+            box-shadow: 0 15px 45px rgba(15,23,42,0.08);
+        }
+        textarea,
+        input[type="text"],
+        input[type="url"] {
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid #d1d5db;
+            padding: 12px;
+            font-family: inherit;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        button.primary {
+            border: none;
+            border-radius: 999px;
+            padding: 12px 28px;
+            background: #111827;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+        button.primary:hover {
+            opacity: 0.9;
+        }
+        .info-list .info-card + .info-card {
+            margin-top: 24px;
+        }
+        .info-meta {
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+        .flash-messages {
+            margin: 20px 0;
+        }
+        .flash-messages p {
+            background: #ecfccb;
+            color: #3f6212;
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin: 0 0 8px;
+        }
+    </style>
+</head>
+<body>
+<a class="how-works-link" href="/how-this-works">Support</a>
+<div class="info-shell">
+    <header style="margin-bottom: 28px;">
+        <a href="{{ url_for('index') }}" class="back-link">&#8592; Back to dashboard</a>
+        <h1 style="margin:14px 0 6px;font-size:2.4rem;">Bike Info Hub</h1>
+        <p style="color:#6b7280;margin:0;">Share quick tips, part links, or setup recommendations for any bike build.</p>
+    </header>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for message in messages %}
+                    <p>{{ message }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <section class="card" style="margin-bottom: 30px;">
+        <h2 style="margin-top:0;">Post helpful info</h2>
+        <form method="POST" action="{{ url_for('info_page') }}">
+            <label for="title" style="display:block;font-weight:600;margin:12px 0 6px;">Bike / Part</label>
+            <input id="title" type="text" name="title" placeholder="e.g., Canyon Ultimate CF SLX drivetrain notes" required>
+
+            <label for="description" style="display:block;font-weight:600;margin:18px 0 6px;">Details</label>
+            <textarea id="description" name="description" placeholder="Share setup tips, sizing notes, maintenance reminders, etc." required></textarea>
+
+            <label for="resource_url" style="display:block;font-weight:600;margin:18px 0 6px;">Reference link (optional)</label>
+            <input id="resource_url" type="url" name="resource_url" placeholder="https://example.com/bike-part">
+
+            <div style="margin-top:18px;text-align:right;">
+                <button type="submit" class="primary">Share Info</button>
+            </div>
+        </form>
+    </section>
+
+    <section>
+        <h2 style="margin-bottom:12px;">Latest posts</h2>
+        <div class="info-list">
+            {% if posts %}
+                {% for post in posts %}
+                    <article class="card info-card">
+                        <div class="info-meta"><strong>{{ post.author }}</strong> &middot; {{ post.created_display }}</div>
+                        <h3 style="margin:6px 0 10px;">{{ post.title }}</h3>
+                        <p style="margin:0 0 12px;">{{ post.description }}</p>
+                        {% if post.resource_url %}
+                            <a href="{{ post.resource_url }}" target="_blank" rel="noopener" style="font-weight:600;color:#2563eb;">View link &rarr;</a>
+                        {% endif %}
+                    </article>
+                {% endfor %}
+            {% else %}
+                <div class="card">
+                    <p style="margin:0;">No info has been added yet. Use the form above to share something helpful.</p>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+</div>
+</body>
+</html>
